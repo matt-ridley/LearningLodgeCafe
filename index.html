@@ -299,7 +299,14 @@ const VERSION = "1.9.0";
 const PASSWORD = "colleen";
 // Shared list across iPads (Firebase). Leave null to keep everything on this iPad only.
 // This config is public by design; access is limited by the rules in firestore.rules.
-const FIREBASE_CONFIG = null;
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCTcXtsOMzzfE2hsZIpuloBK4YVlkrTBgo",
+  authDomain: "learninglodgecafe.firebaseapp.com",
+  projectId: "learninglodgecafe",
+  storageBucket: "learninglodgecafe.firebasestorage.app",
+  messagingSenderId: "871902861494",
+  appId: "1:871902861494:web:ddbeca2ade58398cd7ee17",
+};
 const FIREBASE_SDK = "https://www.gstatic.com/firebasejs/12.19.0/";
 const KEY = "learning-lodge-cafe-v1";
 const OLD_KEYS = ["tea-round-v1"];
@@ -418,6 +425,7 @@ function onRemote() {
   if (remote.cafe === undefined || !remote.people || !remote.photos) return;
   if (!cloud.ready) {
     cloud.ready = true;
+    updateSyncStatus();
     // First connection with an empty shared list: upload this iPad's names, photos and speciality.
     if (!remote.people.size && state.people.length) {
       pushState(); pushPhotos();
@@ -459,16 +467,20 @@ function stopListeners() {
 
 function syncError(e) {
   console.warn("Sync error", e);
+  const first = !cloud.failed;
   cloud.failed = true;
   updateSyncStatus();
-  if (e && e.code === "permission-denied") showToast("This account can't open the shared list. Check the Firebase rules.");
+  if (first && e && e.code === "permission-denied") showToast("This account can't open the shared list. Check the Firebase rules.");
+  // A refused listener stops for good, so reconnect shortly; the cloud copy then replaces anything that didn't save.
+  clearTimeout(cloud.retry);
+  cloud.retry = setTimeout(() => { if (cloud.user) { stopListeners(); startListeners(); } }, 10000);
 }
 
 function updateSyncStatus() {
   const box = $("sync-status");
   if (!cloud.on) { box.textContent = ""; return; }
   const m = Object.values(cloud.meta);
-  box.textContent = " \u00b7 " + (!cloud.user ? "Not connected"
+  box.textContent = " \u00b7 " + (!cloud.authKnown ? "Connecting" : !cloud.user ? "Not connected"
     : cloud.failed ? "Sync problem"
     : !cloud.ready || !navigator.onLine || m.some(x => x.fromCache) ? "Offline, will sync"
     : m.some(x => x.hasPendingWrites) ? "Syncing" : "Live");
