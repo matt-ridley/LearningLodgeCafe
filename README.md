@@ -6,7 +6,7 @@ The whole app is a single file, `index.html`, with no server, build step or sign
 
 **Live app:** https://matt-ridley.github.io/LearningLodgeCafe/
 
-**Current version:** 1.9.0
+**Current version:** 2.0.0
 
 ## Features
 
@@ -46,15 +46,15 @@ The whole app is a single file, `index.html`, with no server, build step or sign
 
 ### Organiser: backing up and restoring
 
-Names, photos and the speciality live only on the iPad, so keep a backup.
+Keep a backup even when the iPads are connected. The free Firebase plan has no automatic backups, and removing a name or photo on one iPad removes it from every iPad straight away, so a backup file is the way to get it back.
 
 1. Tap **Organiser** (enter the password if the round has started).
 2. Under **Backup**, tap **Save backup**, then choose **Save to Files** in the share sheet. The file is named `learning-lodge-cafe-backup-` followed by the date and time.
 3. To restore, tap **Restore from backup** and pick the file. Check the summary, then tap **Replace with backup**.
 
-Restoring replaces the current names, photos and speciality, and clears any answers in the current round. Backups don't include answers.
+Restoring replaces the current names, photos and speciality, and clears any answers in the current round. On a connected iPad this replaces the shared list, so it changes every iPad at once. Backups don't include answers.
 
-Save a new backup after adding people or photos, and before moving to a new iPad, deleting the Home Screen app, or clearing Safari's data.
+Save a new backup after adding people or photos. If the iPads aren't connected to the shared list, also save one before moving to a new iPad, deleting the Home Screen app, or clearing Safari's data.
 
 ## Installing on an iPad
 
@@ -104,6 +104,7 @@ The password is set by the `PASSWORD` constant near the top of the script in `in
 
 The version number is the `VERSION` constant in `index.html`, and it is shown in the footer of the app. It follows `major.minor.patch`:
 
+- **Major** (1.9.0 to 2.0.0) for a big change in how the app works, such as sharing the list between iPads.
 - **Minor** (1.3.0 to 1.4.0) for each new feature.
 - **Patch** (1.3.0 to 1.3.1) for fixes and smaller changes.
 
@@ -113,7 +114,7 @@ Update this README's **Current version** and the changelog in the same commit.
 
 | Version | Date | Changes |
 | --- | --- | --- |
-| 1.9.0 | 2026-Oct-03 08:34:32 AM | Shared list across iPads using Firebase: orders, names, photos, the speciality and rounds sync live, with offline support. Each iPad connects once with the cafe account. Added a sync status to the footer. |
+| 2.0.0 | 2026-Oct-03 09:16:31 AM | Shared list across iPads using Firebase: orders, names, photos, the speciality and rounds sync live, with offline support. Each iPad connects once with the cafe account. Added a sync status to the footer. Backup and restore wording updated for the shared list: restoring on a connected iPad replaces the list on every iPad. |
 | 1.8.0 | 2026-Oct-03 08:18:53 AM | Name tiles in two columns, twice as tall, with larger headshots. The letter filter always shows A to Z, greying out letters with no names. Added an Everyone / Not ordered / Ordered filter. |
 | 1.7.0 | 2026-Oct-03 08:05:08 AM | Changing an order already placed this round now needs a second, explicit confirmation. Tapping the drink already chosen closes the panel without changes. |
 | 1.6.0 | 2026-Oct-03 07:56:09 AM | Added a first-letter filter to the header to find names faster. Moved the Organiser button from the header to the footer. |

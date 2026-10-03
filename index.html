@@ -294,8 +294,8 @@ main { padding: 20px var(--gutter) 32px; display: grid; gap: 18px; }
 <div class="toast" id="toast" role="status" hidden><span id="toast-text"></span><button class="btn" id="toast-undo">Undo</button></div>
 
 <script>
-// Bump on every change: minor for a new feature, patch for fixes and smaller commits.
-const VERSION = "1.9.0";
+// Bump on every change: major for a big change in how the app works, minor for a new feature, patch for fixes.
+const VERSION = "2.0.0";
 const PASSWORD = "colleen";
 // Shared list across iPads (Firebase). Leave null to keep everything on this iPad only.
 // This config is public by design; access is limited by the rules in firestore.rules.
@@ -866,7 +866,9 @@ const fileStamp = () => fmtDate(new Date()).replace(/:/g, "").replace(/ /g, "-")
 function backupSection() {
   const parts = [
     el("div", { class: "eyebrow", text: "Backup" }),
-    el("p", { text: "Save the names, speciality and photos to a file in the Files app, or bring them back from one. Use this before changing iPads or clearing Safari's data." }),
+    el("p", { text: cloud.user
+      ? "Save the names, speciality and photos to a file in the Files app, or bring them back from one. Keep a recent backup in case names or photos are removed by mistake: a removal reaches every iPad straight away."
+      : "Save the names, speciality and photos to a file in the Files app, or bring them back from one. Use this before changing iPads or clearing Safari's data." }),
     el("div", { class: "sheet-actions" },
       el("button", { class: "btn", text: "Save backup", disabled: !state.people.length, onclick: saveBackup }),
       el("button", { class: "btn", text: "Restore from backup", onclick: () => {
@@ -879,7 +881,9 @@ function backupSection() {
     const photoCount = Object.keys(b.photos).length;
     parts.push(el("div", { class: "restore-box", "data-scroll": "" },
       el("p", { text: `Backup${when}: ${b.people.length} ${b.people.length === 1 ? "name" : "names"}, ${photoCount} ${photoCount === 1 ? "photo" : "photos"}${b.speciality ? `, speciality: ${b.speciality}` : ""}.` }),
-      el("p", { text: "Restoring replaces the current names, photos and speciality, and clears any answers in this round." }),
+      el("p", { text: cloud.user
+        ? "Restoring replaces the names, photos and speciality on every connected iPad, and clears everyone's answers in this round."
+        : "Restoring replaces the current names, photos and speciality, and clears any answers in this round." }),
       el("div", { class: "sheet-actions" },
         el("button", { class: "btn danger armed", text: "Replace with backup", onclick: applyRestore }),
         el("button", { class: "btn", text: "Cancel", onclick: () => { pendingRestore = null; renderSheet(); } }))));
