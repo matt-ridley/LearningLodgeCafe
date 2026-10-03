@@ -6,14 +6,15 @@ The whole app is a single file, `index.html`, with no server, build step or sign
 
 **Live app:** https://matt-ridley.github.io/LearningLodgeCafe/
 
-**Current version:** 1.7.0
+**Current version:** 1.8.0
 
 ## Features
 
-- **Name tiles:** each person has a large tile with their headshot (or initials), showing whether they have ordered and what they chose.
+- **Name tiles:** names are shown in two columns, and each person has a tall tile with a large headshot with their headshot (or initials), showing whether they have ordered and what they chose.
 - **One-tap ordering:** tapping a name opens a panel with four large drink buttons. One tap saves the answer, and an **Undo** prompt appears for 5 seconds in case of a wrong tap. Changing an order that has already been placed asks for confirmation first, showing the current and new drink side by side.
 - **Speciality of the round:** the organiser enters the speciality on offer, and it appears in brackets under "Speciality" everywhere in the app.
-- **Letter filter:** a row of letter buttons under the progress bar shows only the names starting with that letter, so people can find their name quickly. Titles like "Mrs" are ignored, so "Mrs Bella" is under B. Tap **All** (or the same letter again) to see everyone. The filter clears after each order, ready for the next person.
+- **Letter filter:** the full alphabet, A to Z, sits under the progress bar. Tap a letter to show only the names starting with it; letters with no matching names are greyed out. Titles like "Mrs" are ignored, so "Mrs Bella" is under B. Tap **All** (or the same letter again) to see everyone. The letter clears after each order, ready for the next person.
+- **Ordered filter:** **Everyone**, **Not ordered** and **Ordered** buttons, each with a count, narrow the list by whether people have ordered yet. This works together with the letter filter.
 - **Live progress:** a counter and progress bar show how many people have answered.
 - **Report:** the Report tab groups everyone by drink, lists who is still to order, and has a **Copy report** button for pasting into a message or email.
 - **Organiser tools:** add or remove people, add headshot photos, set the speciality, and start a round. Once a round starts, these tools lock behind a password.
@@ -88,6 +89,7 @@ Update this README's **Current version** and the changelog in the same commit.
 
 | Version | Date | Changes |
 | --- | --- | --- |
+| 1.8.0 | 2026-Oct-03 08:18:53 AM | Name tiles in two columns, twice as tall, with larger headshots. The letter filter always shows A to Z, greying out letters with no names. Added an Everyone / Not ordered / Ordered filter. |
 | 1.7.0 | 2026-Oct-03 08:05:08 AM | Changing an order already placed this round now needs a second, explicit confirmation. Tapping the drink already chosen closes the panel without changes. |
 | 1.6.0 | 2026-Oct-03 07:56:09 AM | Added a first-letter filter to the header to find names faster. Moved the Organiser button from the header to the footer. |
 | 1.5.1 | 2026-Oct-02 11:34:25 PM | Moved to the LearningLodgeCafe repository with a fresh history. The app is now at https://matt-ridley.github.io/LearningLodgeCafe/. Re-add it to the Home Screen from the new address and restore from a backup. |
