@@ -1,0 +1,827 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Lodge Cafe">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#F1F4F1" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#111715" media="(prefers-color-scheme: dark)">
+<meta name="format-detection" content="telephone=no">
+<link rel="apple-touch-icon" id="touch-icon" href="">
+<title>Learning Lodge Cafe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: iPad kiosk. Header with tabs (Order / Report), a grid of large name tiles,
+   and a centred panel for choosing a drink. Every target is at least 56px tall. */
+:root {
+  --bg: #F1F4F1; --surface: #FFFFFF; --ink: #1D2B26; --muted: #5E6E67; --line: #D8E0DA;
+  --accent: #1F6B57; --accent-ink: #FFFFFF; --accent-soft: #E1EFE9;
+  --tea: #5F7F2E; --coffee: #7A4A2B; --special: #8A3E6B; --none: #6B7772;
+  --warn: #A9501C; --warn-soft: #FBEDE3; --scrim: rgba(16, 26, 22, .45);
+  --f-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Figtree", -apple-system, "Segoe UI", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  --gutter: max(20px, env(safe-area-inset-left, 0px));
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #111715; --surface: #19221F; --ink: #E5EEE9; --muted: #98AAA2; --line: #2B3732;
+  --accent: #5CC3A2; --accent-ink: #0D1B16; --accent-soft: #1D3A31;
+  --tea: #A8C46B; --coffee: #D59D72; --special: #D88BBA; --none: #9AA8A2;
+  --warn: #F0965C; --warn-soft: #3A2418; --scrim: rgba(0, 0, 0, .6); color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #111715; --surface: #19221F; --ink: #E5EEE9; --muted: #98AAA2; --line: #2B3732;
+  --accent: #5CC3A2; --accent-ink: #0D1B16; --accent-soft: #1D3A31;
+  --tea: #A8C46B; --coffee: #D59D72; --special: #D88BBA; --none: #9AA8A2;
+  --warn: #F0965C; --warn-soft: #3A2418; --scrim: rgba(0, 0, 0, .6); color-scheme: dark }
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 18px/1.45 var(--f-body);
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+body.locked { overflow: hidden; }
+h1, h2, h3 { font-family: var(--f-display); margin: 0; text-wrap: balance; }
+button { font: inherit; color: inherit; cursor: pointer; touch-action: manipulation; -webkit-user-select: none; user-select: none; }
+button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+button:disabled { opacity: .45; cursor: not-allowed; }
+.eyebrow { font-size: 13px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); font-weight: 700; }
+.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+
+/* Header */
+.top {
+  position: sticky; top: 0; z-index: 5; background: var(--bg);
+  padding: calc(env(safe-area-inset-top, 0px) + 18px) var(--gutter) 14px;
+  border-bottom: 1px solid var(--line);
+  display: grid; gap: 14px;
+}
+.top-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.brand { flex: 1 1 260px; min-width: 0; }
+h1 { font-size: clamp(30px, 4.4vw, 44px); font-weight: 800; letter-spacing: -0.02em; line-height: 1.05; }
+.tabs { display: inline-grid; grid-template-columns: 1fr 1fr; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 4px; gap: 4px; }
+.tab { min-height: 52px; min-width: 120px; padding: 0 20px; border: 0; border-radius: 12px; background: transparent; font-weight: 700; font-size: 18px; color: var(--muted); }
+.tab[aria-selected="true"] { background: var(--accent); color: var(--accent-ink); }
+.btn {
+  min-height: 56px; padding: 0 22px; border-radius: 14px; border: 1px solid var(--line);
+  background: var(--surface); font-weight: 600; font-size: 18px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  transition: transform .08s ease, background-color .15s ease;
+}
+.btn:active:not(:disabled) { transform: scale(.97); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.danger { color: var(--warn); border-color: var(--warn); }
+.btn.danger.armed { background: var(--warn); color: var(--surface); }
+.btn.quiet { border-color: transparent; background: transparent; color: var(--muted); }
+.btn svg { width: 20px; height: 20px; }
+.progress { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.count { font-size: 17px; white-space: nowrap; }
+.count b { font-family: var(--f-mono); font-size: 20px; }
+.bar { flex: 1 1 200px; height: 12px; background: var(--line); border-radius: 99px; overflow: hidden; }
+.bar > i { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 99px; transition: width .4s ease; }
+
+main { padding: 20px var(--gutter) 32px; display: grid; gap: 18px; }
+.credit { padding: 0 var(--gutter) calc(env(safe-area-inset-bottom, 0px) + 24px); text-align: center; font-size: 14px; color: var(--muted); }
+.credit .num { font-size: 13px; }
+.lede { margin: 0; font-size: 20px; color: var(--muted); }
+.notice { padding: 14px 18px; border-radius: 14px; font-weight: 600; }
+.notice.done { background: var(--accent-soft); color: var(--accent); }
+.notice.info { background: var(--warn-soft); color: var(--warn); }
+
+/* Name tiles */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.tile {
+  min-height: 96px; padding: 14px; text-align: left;
+  border: 1px solid var(--line); border-radius: 18px; background: var(--surface);
+  display: flex; align-items: center; gap: 14px;
+  transition: transform .08s ease;
+}
+.tile:active { transform: scale(.97); }
+.tile .body { display: grid; gap: 6px; min-width: 0; }
+
+/* Headshots: a photo when one is saved on this iPad, otherwise initials */
+.avatar {
+  width: 64px; height: 64px; border-radius: 50%; flex: none; object-fit: cover;
+  background: var(--accent-soft); color: var(--accent);
+  display: grid; place-items: center;
+  font: 700 22px/1 var(--f-display); letter-spacing: .02em;
+}
+.avatar.lg { width: 104px; height: 104px; font-size: 36px; }
+.avatar.sm { width: 30px; height: 30px; font-size: 12px; }
+.sheet-head { display: flex; align-items: center; gap: 18px; }
+.sheet-head > div { min-width: 0; }
+.tile .name { font-size: 21px; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
+.tile .state { display: flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 600; color: var(--muted); }
+.tile .state svg { width: 22px; height: 22px; flex: none; }
+.label-stack { display: grid; line-height: 1.2; min-width: 0; }
+.label-stack .sub { font-size: .82em; font-weight: 500; overflow-wrap: anywhere; }
+.drink .label-stack { justify-items: center; text-align: center; }
+.tile[data-d] { border-color: transparent; }
+.tile[data-d="tea"] { background: color-mix(in srgb, var(--tea) 15%, var(--surface)); }
+.tile[data-d="tea"] .state { color: var(--tea); }
+.tile[data-d="coffee"] { background: color-mix(in srgb, var(--coffee) 15%, var(--surface)); }
+.tile[data-d="coffee"] .state { color: var(--coffee); }
+.tile[data-d="speciality"] { background: color-mix(in srgb, var(--special) 15%, var(--surface)); }
+.tile[data-d="speciality"] .state { color: var(--special); }
+.tile[data-d="none"] { background: color-mix(in srgb, var(--none) 12%, var(--surface)); }
+.tile[data-d="none"] .state { color: var(--none); }
+.empty-state { padding: 40px 20px; text-align: center; color: var(--muted); background: var(--surface); border: 1px dashed var(--line); border-radius: 18px; }
+
+/* Report */
+.report-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.report-head h2 { font-size: 28px; font-weight: 600; }
+.groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; align-items: start; }
+.group { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px 20px; display: grid; gap: 12px; }
+.group-head { display: flex; align-items: center; gap: 10px; }
+.group-head svg { width: 30px; height: 30px; flex: none; }
+.group-head h3 { font-size: 22px; font-weight: 600; flex: 1; }
+.tally { font-family: var(--f-mono); font-size: 28px; }
+.group[data-d="tea"] .group-head { color: var(--tea); }
+.group[data-d="coffee"] .group-head { color: var(--coffee); }
+.group[data-d="speciality"] .group-head { color: var(--special); }
+.group[data-d="none"] .group-head { color: var(--none); }
+.group[data-d="waiting"] { background: var(--warn-soft); border-color: transparent; }
+.group[data-d="waiting"] .group-head { color: var(--warn); }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.chips li { display: flex; align-items: center; gap: 8px; padding: 4px 12px 4px 4px; border-radius: 99px; background: var(--bg); font-weight: 600; font-size: 17px; }
+.group[data-d="waiting"] .chips li { background: var(--surface); }
+.none-yet { color: var(--muted); font-size: 16px; }
+.copybox { width: 100%; min-height: 220px; font: 15px/1.5 var(--f-mono); padding: 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+
+/* Panel (modal sheet) */
+.scrim { position: fixed; inset: 0; background: var(--scrim); z-index: 20; animation: fade .15s ease; }
+.sheet {
+  position: fixed; z-index: 21; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: min(620px, calc(100% - 32px)); max-height: calc(100% - 48px); overflow-y: auto;
+  background: var(--surface); border-radius: 24px; padding: 26px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .25);
+  display: grid; gap: 18px; animation: pop .18s ease;
+}
+.sheet h2 { font-size: 30px; font-weight: 800; letter-spacing: -0.01em; }
+.sheet p { margin: 0; color: var(--muted); }
+.drinks { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.drink {
+  min-height: 132px; border-radius: 20px; border: 2px solid var(--line); background: var(--surface);
+  display: grid; justify-items: center; align-content: center; gap: 8px;
+  font-size: 22px; font-weight: 700; transition: transform .08s ease;
+}
+.drink svg { width: 46px; height: 46px; }
+.drink:active { transform: scale(.96); }
+.drink[data-d="tea"] { color: var(--tea); }
+.drink[data-d="coffee"] { color: var(--coffee); }
+.drink[data-d="speciality"] { color: var(--special); }
+.drink[data-d="none"] { color: var(--none); }
+.drink[aria-pressed="true"] { border-color: currentColor; background: color-mix(in srgb, currentColor 10%, var(--surface)); }
+.drink small { font-size: 14px; font-weight: 600; color: var(--muted); }
+.sheet-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.sheet-actions .btn { flex: 1 1 180px; }
+.field { display: grid; gap: 8px; font-weight: 600; }
+.field input, .field textarea {
+  width: 100%; font: 18px/1.4 var(--f-body); padding: 14px 16px; min-height: 56px;
+  border: 1px solid var(--line); border-radius: 14px; background: var(--bg); color: var(--ink);
+}
+.err { color: var(--warn); font-weight: 600; min-height: 1.4em; }
+.ok { color: var(--accent); font-weight: 600; }
+.divider { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
+.restore-box { display: grid; gap: 12px; padding: 16px; border-radius: 14px; background: var(--warn-soft); }
+.restore-box p { color: var(--ink); }
+
+/* Toast */
+.toast {
+  position: fixed; z-index: 30; left: 50%; transform: translateX(-50%);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 24px);
+  width: max-content; max-width: calc(100% - 32px);
+  display: flex; align-items: center; gap: 16px;
+  background: var(--ink); color: var(--bg); border-radius: 18px; padding: 10px 10px 10px 22px;
+  font-weight: 600; font-size: 19px; box-shadow: 0 12px 30px rgba(0, 0, 0, .25); animation: rise .2s ease;
+}
+.toast .btn { min-height: 48px; background: transparent; color: var(--bg); border-color: color-mix(in srgb, var(--bg) 40%, transparent); }
+
+@keyframes fade { from { opacity: 0; } }
+@keyframes pop { from { opacity: 0; transform: translate(-50%, -46%); } }
+@keyframes rise { from { opacity: 0; transform: translate(-50%, 12px); } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+@media (max-width: 560px) {
+  .tabs { width: 100%; }
+  .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tile { flex-direction: column; align-items: flex-start; }
+  .avatar.lg { width: 80px; height: 80px; font-size: 28px; }
+  .drink { min-height: 110px; }
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="top-row">
+    <div class="brand">
+      <div class="eyebrow">Drinks order</div>
+      <h1>Learning Lodge Cafe</h1>
+    </div>
+    <div class="tabs" role="tablist" aria-label="Screens">
+      <button class="tab" role="tab" id="tab-order" aria-selected="true" aria-controls="view-order">Order</button>
+      <button class="tab" role="tab" id="tab-report" aria-selected="false" aria-controls="view-report">Report</button>
+    </div>
+    <button class="btn" id="org-btn"></button>
+  </div>
+  <div class="progress">
+    <div class="count"><b class="num" id="done-n">0</b> of <b class="num" id="total-n">0</b> answered</div>
+    <div class="bar" aria-hidden="true"><i id="bar"></i></div>
+  </div>
+</header>
+
+<main>
+  <section id="view-order" role="tabpanel" aria-labelledby="tab-order">
+    <div style="display:grid;gap:16px">
+      <div class="notice" id="notice" hidden></div>
+      <p class="lede">Tap your name to choose a drink.</p>
+      <div class="grid" id="grid"></div>
+    </div>
+  </section>
+
+  <section id="view-report" role="tabpanel" aria-labelledby="tab-report" hidden>
+    <div style="display:grid;gap:16px">
+      <div class="report-head">
+        <h2>Report by drink</h2>
+        <button class="btn" id="copy-btn">Copy report</button>
+      </div>
+      <textarea class="copybox" id="copybox" hidden readonly aria-label="Report text"></textarea>
+      <div class="groups" id="groups"></div>
+    </div>
+  </section>
+</main>
+
+<footer class="credit">Learning Lodge Cafe <span class="num" id="app-version"></span> &middot; Built by Matt Ridley</footer>
+
+<div class="scrim" id="scrim" hidden></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" hidden></div>
+<input type="file" id="photo-input" accept="image/*" hidden>
+<input type="file" id="restore-input" accept="application/json,.json" hidden>
+<div class="toast" id="toast" role="status" hidden><span id="toast-text"></span><button class="btn" id="toast-undo">Undo</button></div>
+
+<script>
+// Bump on every change: minor for a new feature, patch for fixes and smaller commits.
+const VERSION = "1.5.1";
+const PASSWORD = "colleen";
+const KEY = "learning-lodge-cafe-v1";
+const OLD_KEYS = ["tea-round-v1"];
+
+const ICON = {
+  tea: '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 19h28v8a12 12 0 0 1-12 12h-4A12 12 0 0 1 7 27z"/><path d="M35 22h3a5 5 0 0 1 0 10h-3"/><path d="M24 19c0-6 4-7 4-12"/><rect x="25" y="5" width="7" height="7" rx="1.5"/></svg>',
+  coffee: '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 19h28v8a12 12 0 0 1-12 12h-4A12 12 0 0 1 7 27z"/><path d="M35 22h3a5 5 0 0 1 0 10h-3"/><path d="M15 5c-2 3 2 5 0 9M21 5c-2 3 2 5 0 9M27 5c-2 3 2 5 0 9"/></svg>',
+  speciality: '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 17h22l-3 25H16z"/><path d="M12 17c0-5 5-8 12-8s12 3 12 8"/><path d="M28 3l-3 14"/><path d="M15 27h18"/></svg>',
+  none: '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><circle cx="24" cy="24" r="16"/><path d="M13 35L35 13"/></svg>',
+  lock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>',
+  unlock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.5-2"/></svg>',
+};
+const DRINKS = [
+  { key: "tea", label: "Tea" },
+  { key: "coffee", label: "Coffee" },
+  { key: "speciality", label: "Speciality" },
+  { key: "none", label: "No thanks" },
+];
+const LABEL = Object.fromEntries(DRINKS.map(d => [d.key, d.label]));
+
+/* ---------- Storage (this iPad only) ---------- */
+function defaultState() {
+  // No names ship with the app: the organiser adds them on the iPad, so they stay off the public site.
+  return { people: [], round: { started: false }, speciality: "" };
+}
+function loadState() {
+  for (const k of [KEY, ...OLD_KEYS]) {
+    try {
+      const s = JSON.parse(localStorage.getItem(k));
+      if (s && Array.isArray(s.people)) return { people: s.people, round: s.round || { started: false }, speciality: s.speciality || "" };
+    } catch {}
+  }
+  return defaultState();
+}
+let state = loadState();
+function persist() {
+  try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {}
+  render();
+}
+window.addEventListener("storage", e => {
+  if (e.key === KEY) { state = loadState(); render(); }
+  if (e.key === PHOTO_KEY) { photos = loadPhotos(); render(); }
+});
+
+/* Headshots are kept under their own key so order saves stay small. */
+const PHOTO_KEY = "learning-lodge-cafe-photos-v1";
+function loadPhotos() {
+  try { return JSON.parse(localStorage.getItem(PHOTO_KEY)) || {}; } catch { return {}; }
+}
+let photos = loadPhotos();
+// Returns "ok", "full" (over the storage limit) or "blocked" (the browser isn't saving data, e.g. Private Browsing).
+function savePhotos() {
+  try { localStorage.setItem(PHOTO_KEY, JSON.stringify(photos)); return "ok"; }
+  catch (e) { return e && (e.name === "QuotaExceededError" || e.code === 22) ? "full" : "blocked"; }
+}
+
+/* ---------- Helpers ---------- */
+let view = "order", sheet = null, unlocked = false, armed = null, toastTimer = null, undoFn = null, sheetMsg = "";
+const isOrganiser = () => !state.round.started || unlocked;
+const $ = id => document.getElementById(id);
+const byId = id => state.people.find(p => p.id === id);
+function el(tag, attrs = {}, ...kids) {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") n.className = v;
+    else if (k === "text") n.textContent = v;
+    else if (k === "html") n.innerHTML = v;
+    else if (k.startsWith("on")) n.addEventListener(k.slice(2), v);
+    else if (v !== false && v != null) n.setAttribute(k, v === true ? "" : v);
+  }
+  for (const c of kids) if (c) n.append(c);
+  return n;
+}
+const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function fmtDate(d) {
+  const p = n => String(n).padStart(2, "0");
+  const h = d.getHours() % 12 || 12;
+  return `${d.getFullYear()}-${MON[d.getMonth()]}-${p(d.getDate())} ${p(h)}:${p(d.getMinutes())}:${p(d.getSeconds())} ${d.getHours() < 12 ? "AM" : "PM"}`;
+}
+const sortKey = n => n.replace(/^(mrs|mr|ms|miss|dr)\.?\s+/i, "") + " " + n;
+function initials(name) {
+  const parts = name.replace(/^(mrs|mr|ms|miss|dr)\.?\s+/i, "").split(/\s+/).filter(Boolean);
+  if (!parts.length) return "?";
+  return (parts.length > 1 ? parts[0][0] + parts[parts.length - 1][0] : parts[0].slice(0, 2)).toUpperCase();
+}
+function avatar(p, size = "") {
+  const src = photos[p.id];
+  return src
+    ? el("img", { class: "avatar " + size, src, alt: "" })
+    : el("span", { class: "avatar " + size, "aria-hidden": "true", text: initials(p.name) });
+}
+const specialName = () => (state.speciality || "").trim();
+/* A drink's name, with today's speciality in brackets underneath when one is set. */
+function drinkLabel(key) {
+  const extra = key === "speciality" && specialName();
+  return el("span", { class: "label-stack" }, el("span", { text: LABEL[key] }),
+    extra ? el("span", { class: "sub", text: `(${extra})` }) : null);
+}
+const drinkText = key => key === "speciality" && specialName() ? `${LABEL[key]} (${specialName()})` : LABEL[key];
+const sorted = () => [...state.people].sort((a, b) => sortKey(a.name).localeCompare(sortKey(b.name), undefined, { sensitivity: "base" }));
+
+/* ---------- Main render ---------- */
+function render() {
+  const list = sorted();
+  const done = list.filter(p => p.drink).length;
+  $("done-n").textContent = done;
+  $("total-n").textContent = list.length;
+  $("bar").style.width = list.length ? (done / list.length * 100) + "%" : "0";
+
+  $("tab-order").setAttribute("aria-selected", String(view === "order"));
+  $("tab-report").setAttribute("aria-selected", String(view === "report"));
+  $("view-order").hidden = view !== "order";
+  $("view-report").hidden = view !== "report";
+
+  const org = $("org-btn");
+  org.innerHTML = (isOrganiser() ? ICON.unlock : ICON.lock) + "<span>Organiser</span>";
+  org.setAttribute("aria-label", isOrganiser() ? "Organiser tools" : "Organiser tools, locked");
+
+  const notice = $("notice");
+  if (!state.round.started) {
+    notice.hidden = false; notice.className = "notice info";
+    notice.textContent = "The round hasn't started yet. Organiser: tap Organiser to check the names, then start the round.";
+  } else if (list.length && done === list.length) {
+    notice.hidden = false; notice.className = "notice done";
+    notice.textContent = "Everyone has answered. The Report tab has the full list.";
+  } else notice.hidden = true;
+
+  renderGrid(list);
+  renderReport(list);
+}
+
+function renderGrid(list) {
+  const grid = $("grid");
+  grid.replaceChildren();
+  if (!list.length) {
+    grid.append(el("div", { class: "empty-state", style: "grid-column: 1 / -1",
+      text: "No names yet. Tap Organiser, then add everyone's name (one per line, or paste a list)." }));
+    return;
+  }
+  for (const p of list) {
+    const status = p.drink
+      ? el("span", { class: "state", html: ICON[p.drink] }, drinkLabel(p.drink))
+      : el("span", { class: "state", text: "Tap to order" });
+    grid.append(el("button", { class: "tile", "data-d": p.drink || null,
+      "aria-label": `${p.name}, ${p.drink ? drinkText(p.drink) : "not ordered yet"}`,
+      onclick: () => openSheet({ type: "order", id: p.id }) },
+      avatar(p), el("span", { class: "body" }, el("span", { class: "name", text: p.name }), status)));
+  }
+}
+
+function renderReport(list) {
+  const box = $("groups");
+  box.replaceChildren();
+  for (const d of DRINKS) {
+    const who = list.filter(p => p.drink === d.key);
+    const g = el("div", { class: "group", "data-d": d.key },
+      el("div", { class: "group-head", html: ICON[d.key] }, el("h3", {}, drinkLabel(d.key)), el("span", { class: "tally", text: String(who.length) })));
+    g.append(who.length
+      ? el("ul", { class: "chips" }, ...who.map(p => el("li", {}, avatar(p, "sm"), document.createTextNode(p.name))))
+      : el("div", { class: "none-yet", text: "No one yet" }));
+    box.append(g);
+  }
+  const waiting = list.filter(p => !p.drink);
+  if (waiting.length) {
+    box.append(el("div", { class: "group", "data-d": "waiting" },
+      el("div", { class: "group-head" }, el("h3", { text: "Still to order" }), el("span", { class: "tally", text: String(waiting.length) })),
+      el("ul", { class: "chips" }, ...waiting.map(p => el("li", {}, avatar(p, "sm"), document.createTextNode(p.name))))));
+  }
+}
+
+/* ---------- Panel ---------- */
+function openSheet(s) { sheet = s; armed = null; sheetMsg = ""; pendingRestore = null; backupMsg = null; renderSheet(); }
+function closeSheet() {
+  sheet = null; armed = null;
+  $("sheet").hidden = true; $("scrim").hidden = true;
+  document.body.classList.remove("locked");
+}
+function renderSheet() {
+  const box = $("sheet");
+  box.replaceChildren();
+  if (!sheet) return closeSheet();
+  if (sheet.type === "order") orderSheet(box);
+  else if (sheet.type === "unlock") unlockSheet(box);
+  else organiserSheet(box);
+  box.hidden = false; $("scrim").hidden = false;
+  document.body.classList.add("locked");
+  const pw = box.querySelector("#pw");
+  if (pw) pw.focus({ preventScroll: true });
+  const target = box.querySelector("[data-scroll]");
+  if (target) target.scrollIntoView({ block: "nearest" });
+}
+
+function orderSheet(box) {
+  const p = byId(sheet.id);
+  if (!p) return closeSheet();
+  const hasPhoto = !!photos[p.id];
+  // Organiser-only parts are null when locked; filter them so append() doesn't print "null".
+  box.append(...[
+    el("div", { class: "sheet-head" }, avatar(p, "lg"),
+      el("div", {}, el("div", { class: "eyebrow", text: "Select order for" }),
+        el("h2", { id: "sheet-title", text: p.name }))),
+    el("p", { text: `What would ${p.name} like?` }),
+    el("div", { class: "drinks" }, ...DRINKS.map(d =>
+      el("button", { class: "drink", "data-d": d.key, "aria-pressed": String(p.drink === d.key),
+        html: ICON[d.key], onclick: () => choose(p.id, d.key) },
+        drinkLabel(d.key),
+        p.drink === d.key ? el("small", { text: "Current choice" }) : null))),
+    el("div", { class: "sheet-actions" },
+      el("button", { class: "btn", text: "Cancel", onclick: closeSheet }),
+      isOrganiser() ? el("button", { class: "btn danger" + (armed === "remove" ? " armed" : ""),
+        text: armed === "remove" ? `Tap again to remove ${p.name}` : "Remove from list",
+        onclick: () => removePerson(p.id) }) : null),
+    isOrganiser() ? el("div", { class: "sheet-actions" },
+      el("button", { class: "btn", text: hasPhoto ? "Change photo" : "Add photo", onclick: () => pickPhoto(p.id) }),
+      hasPhoto ? el("button", { class: "btn danger" + (armed === "photo" ? " armed" : ""),
+        text: armed === "photo" ? "Tap again to remove photo" : "Remove photo",
+        onclick: () => removePhoto(p.id) }) : null) : null,
+    sheetMsg ? el("div", { class: "err", text: sheetMsg }) : null,
+  ].filter(Boolean));
+}
+
+function unlockSheet(box) {
+  const input = el("input", { id: "pw", type: "password", autocomplete: "off", autocapitalize: "off",
+    autocorrect: "off", spellcheck: "false", enterkeyhint: "go" });
+  const err = el("div", { class: "err", id: "pw-err" });
+  const tryUnlock = () => {
+    if (input.value.trim().toLowerCase() === PASSWORD) { unlocked = true; render(); openSheet({ type: "organiser" }); }
+    else { err.textContent = "That password isn't right. Try again."; input.select(); }
+  };
+  input.addEventListener("keydown", e => { if (e.key === "Enter") tryUnlock(); });
+  box.append(
+    el("div", {}, el("div", { class: "eyebrow", text: "Locked" }), el("h2", { id: "sheet-title", text: "Organiser" })),
+    el("p", { text: "The round has started, so the organiser tools are locked. Enter the password to open them." }),
+    el("label", { class: "field" }, document.createTextNode("Password"), input),
+    err,
+    el("div", { class: "sheet-actions" },
+      el("button", { class: "btn", text: "Cancel", onclick: closeSheet }),
+      el("button", { class: "btn primary", text: "Unlock", onclick: tryUnlock })));
+}
+
+function organiserSheet(box) {
+  const started = state.round.started;
+  const answered = state.people.filter(p => p.drink).length;
+  const ta = el("textarea", { id: "add-names", rows: "3", placeholder: "One name per line, or paste a list" });
+  const msg = el("div", { class: "err", id: "add-msg" });
+  const special = el("input", { id: "speciality", type: "text", maxlength: "60", autocomplete: "off",
+    enterkeyhint: "done", placeholder: "e.g. Pumpkin spice latte" });
+  special.value = state.speciality || "";
+  special.addEventListener("input", () => { state.speciality = special.value; persist(); });
+  special.addEventListener("keydown", e => { if (e.key === "Enter") special.blur(); });
+  const add = () => {
+    const existing = new Set(state.people.map(p => p.name.toLowerCase()));
+    const names = [...new Set(ta.value.split(/[\n,]/).map(s => s.trim()).filter(Boolean))]
+      .filter(n => !existing.has(n.toLowerCase()));
+    if (!names.length) { msg.className = "err"; msg.textContent = "Type at least one new name."; return; }
+    for (const name of names) state.people.push({ id: "p" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name: name.slice(0, 60), drink: null, orderedAt: null });
+    persist();
+    ta.value = "";
+    msg.className = "ok"; msg.textContent = `Added ${names.length} ${names.length === 1 ? "name" : "names"}.`;
+  };
+  const roundBtn = started
+    ? el("button", { class: "btn danger" + (armed === "reset" ? " armed" : ""),
+        text: armed === "reset" ? `Tap again to clear ${answered} answers` : "Start a new round",
+        onclick: () => {
+          if (armed !== "reset") { armed = "reset"; renderSheet(); return; }
+          state.people.forEach(p => { p.drink = null; p.orderedAt = null; });
+          state.round = { started: true, startedAt: new Date().toISOString() };
+          unlocked = false; persist(); closeSheet(); view = "order"; render();
+          showToast("New round started. Organiser tools are locked.");
+        } })
+    : el("button", { class: "btn primary", text: "Start the round", disabled: !state.people.length,
+        onclick: () => {
+          state.round = { started: true, startedAt: new Date().toISOString() };
+          unlocked = false; persist(); closeSheet();
+          showToast("Round started. Organiser tools are locked.");
+        } });
+  box.append(
+    el("div", {}, el("div", { class: "eyebrow", text: started ? "Unlocked" : "Setting up" }), el("h2", { id: "sheet-title", text: "Organiser" })),
+    el("p", { text: started
+      ? "Update the speciality if it has changed. A new round clears everyone's answers, keeps the names and photos, and locks these tools again. To add a photo or remove someone, close this and tap their name."
+      : "Enter the speciality and add or check the names, then start the round. These tools then lock and need the password. To add a photo or remove someone, close this and tap their name." }),
+    el("label", { class: "field" }, document.createTextNode("Speciality available this round"), special),
+    el("p", { text: "Shown in brackets under Speciality on every screen. Leave it blank to show just Speciality." }),
+    el("hr", { class: "divider" }),
+    el("label", { class: "field" }, document.createTextNode("Add people"), ta),
+    el("div", { class: "sheet-actions" }, el("button", { class: "btn", text: "Add to the list", onclick: add })),
+    msg,
+    el("hr", { class: "divider" }),
+    ...backupSection(),
+    el("hr", { class: "divider" }),
+    el("div", { class: "sheet-actions" },
+      roundBtn,
+      started ? el("button", { class: "btn", html: ICON.lock + "<span>Lock now</span>",
+        onclick: () => { unlocked = false; closeSheet(); render(); } }) : null,
+      el("button", { class: "btn quiet", text: "Close", onclick: closeSheet })));
+}
+
+/* ---------- Backup and restore (organiser only) ---------- */
+// A backup holds the names, speciality and photos. Answers are left out: they belong to one round.
+let pendingRestore = null, backupMsg = null;
+const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
+const fileStamp = () => fmtDate(new Date()).replace(/:/g, "").replace(/ /g, "-");
+
+function backupSection() {
+  const parts = [
+    el("div", { class: "eyebrow", text: "Backup" }),
+    el("p", { text: "Save the names, speciality and photos to a file in the Files app, or bring them back from one. Use this before changing iPads or clearing Safari's data." }),
+    el("div", { class: "sheet-actions" },
+      el("button", { class: "btn", text: "Save backup", disabled: !state.people.length, onclick: saveBackup }),
+      el("button", { class: "btn", text: "Restore from backup", onclick: () => {
+        const input = $("restore-input"); input.value = ""; input.click();
+      } })),
+  ];
+  if (pendingRestore) {
+    const b = pendingRestore;
+    const when = b.savedAt && !isNaN(new Date(b.savedAt)) ? ` from ${fmtDate(new Date(b.savedAt))}` : "";
+    const photoCount = Object.keys(b.photos).length;
+    parts.push(el("div", { class: "restore-box", "data-scroll": "" },
+      el("p", { text: `Backup${when}: ${b.people.length} ${b.people.length === 1 ? "name" : "names"}, ${photoCount} ${photoCount === 1 ? "photo" : "photos"}${b.speciality ? `, speciality: ${b.speciality}` : ""}.` }),
+      el("p", { text: "Restoring replaces the current names, photos and speciality, and clears any answers in this round." }),
+      el("div", { class: "sheet-actions" },
+        el("button", { class: "btn danger armed", text: "Replace with backup", onclick: applyRestore }),
+        el("button", { class: "btn", text: "Cancel", onclick: () => { pendingRestore = null; renderSheet(); } }))));
+  }
+  if (backupMsg) parts.push(el("div", { class: backupMsg.ok ? "ok" : "err", text: backupMsg.text, "data-scroll": pendingRestore ? null : "" }));
+  return parts;
+}
+
+function setBackupMsg(text, ok) {
+  backupMsg = { text, ok };
+  if (sheet && sheet.type === "organiser") renderSheet();
+}
+
+async function saveBackup() {
+  const ids = new Set(state.people.map(p => p.id));
+  const data = {
+    app: "learning-lodge-cafe", version: VERSION, savedAt: new Date().toISOString(),
+    speciality: state.speciality || "",
+    people: state.people.map(p => ({ id: p.id, name: p.name })),
+    photos: Object.fromEntries(Object.entries(photos).filter(([id]) => ids.has(id))),
+  };
+  const counts = `${plural(data.people.length, "name")}, ${plural(Object.keys(data.photos).length, "photo")}`;
+  const name = `learning-lodge-cafe-backup-${fileStamp()}.json`;
+  const file = new File([JSON.stringify(data)], name, { type: "application/json" });
+  // On iPad the share sheet offers Save to Files; elsewhere fall back to a download.
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: "Learning Lodge Cafe backup" });
+      return setBackupMsg(`Backup saved (${counts}).`, true);
+    } catch (e) {
+      if (e && e.name === "AbortError") return setBackupMsg("Backup cancelled. Nothing was saved.", false);
+    }
+  }
+  try {
+    const url = URL.createObjectURL(file);
+    const a = el("a", { href: url, download: name });
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    setBackupMsg(`Backup downloaded as ${name} (${counts}).`, true);
+  } catch {
+    setBackupMsg("The backup couldn't be saved on this device.", false);
+  }
+}
+
+$("restore-input").addEventListener("change", async e => {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  pendingRestore = null;
+  try {
+    const b = JSON.parse(await file.text());
+    if (!b || b.app !== "learning-lodge-cafe" || !Array.isArray(b.people)) throw new Error("not a backup");
+    const seen = new Set();
+    const people = [];
+    for (const p of b.people) {
+      if (!p || typeof p.name !== "string" || !p.name.trim()) continue;
+      let id = typeof p.id === "string" && /^[\w-]{1,40}$/.test(p.id) ? p.id : "";
+      if (!id || seen.has(id)) id = "p" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+      seen.add(id);
+      people.push({ id, name: p.name.trim().slice(0, 60) });
+    }
+    const pics = {};
+    for (const [id, src] of Object.entries(b.photos || {})) {
+      if (seen.has(id) && typeof src === "string" && src.startsWith("data:image/")) pics[id] = src;
+    }
+    pendingRestore = { people, photos: pics, speciality: typeof b.speciality === "string" ? b.speciality.slice(0, 60) : "", savedAt: b.savedAt };
+    backupMsg = null;
+  } catch {
+    backupMsg = { text: "That file isn't a Learning Lodge Cafe backup. Choose a file whose name starts with learning-lodge-cafe-backup.", ok: false };
+  }
+  if (sheet && sheet.type === "organiser") renderSheet();
+});
+
+function applyRestore() {
+  const b = pendingRestore;
+  if (!b) return;
+  state.people = b.people.map(p => ({ id: p.id, name: p.name, drink: null, orderedAt: null }));
+  state.speciality = b.speciality;
+  const before = photos;
+  photos = b.photos;
+  const saved = savePhotos();
+  if (saved === "full") photos = before;
+  persist();
+  pendingRestore = null;
+  const n = b.people.length, k = Object.keys(b.photos).length;
+  if (saved === "full") setBackupMsg(`Restored ${plural(n, "name")} and the speciality, but the photos didn't fit in this iPad's storage for the app.`, false);
+  else if (saved === "blocked") setBackupMsg(`Restored ${plural(n, "name")} and ${plural(k, "photo")}, but this browser isn't saving data, so they'll be lost when the app closes.`, false);
+  else setBackupMsg(`Restored ${plural(n, "name")} and ${plural(k, "photo")}.`, true);
+}
+
+/* ---------- Actions ---------- */
+function choose(id, drink) {
+  const p = byId(id);
+  if (!p) return closeSheet();
+  const prev = { drink: p.drink, orderedAt: p.orderedAt };
+  p.drink = drink; p.orderedAt = new Date().toISOString();
+  persist(); closeSheet();
+  showToast(drink === "none" ? `${p.name}: no thanks` : `${p.name}: ${drinkText(drink)}`, () => {
+    const q = byId(id); if (q) { Object.assign(q, prev); persist(); }
+  });
+}
+
+function removePerson(id) {
+  if (armed !== "remove") { armed = "remove"; renderSheet(); return; }
+  const idx = state.people.findIndex(p => p.id === id);
+  if (idx < 0) return closeSheet();
+  const [gone] = state.people.splice(idx, 1);
+  const gonephoto = photos[id];
+  if (gonephoto) { delete photos[id]; savePhotos(); }
+  persist(); closeSheet();
+  showToast(`Removed ${gone.name}`, () => {
+    state.people.push(gone);
+    if (gonephoto) { photos[id] = gonephoto; savePhotos(); }
+    persist();
+  });
+}
+
+/* ---------- Photos (organiser only) ---------- */
+let photoFor = null;
+function pickPhoto(id) {
+  photoFor = id;
+  const input = $("photo-input");
+  input.value = "";
+  input.click();
+}
+$("photo-input").addEventListener("change", async e => {
+  const file = e.target.files && e.target.files[0];
+  const id = photoFor;
+  photoFor = null;
+  if (!file || !id || !byId(id)) return;
+  try {
+    const data = await squarePhoto(file);
+    const before = photos[id];
+    photos[id] = data;
+    const saved = savePhotos();
+    if (saved === "full") {
+      if (before) photos[id] = before; else delete photos[id];
+      sheetMsg = "The photo couldn't be saved because this iPad's storage for the app is full. Remove a few photos and try again.";
+    } else if (saved === "blocked") {
+      sheetMsg = "This browser isn't saving data (for example, in Private Browsing), so the photo will be lost when the app closes.";
+    } else sheetMsg = "";
+  } catch {
+    sheetMsg = "That file couldn't be opened as a photo. Try a different picture.";
+  }
+  render();
+  if (sheet && sheet.type === "order" && sheet.id === id) { armed = null; renderSheet(); }
+});
+
+/* Crop to a square, biased toward the top of portrait shots where faces usually are, and shrink to 256px. */
+function squarePhoto(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const w = img.naturalWidth, h = img.naturalHeight, s = Math.min(w, h);
+      const sx = (w - s) / 2, sy = h > w ? (h - s) * 0.25 : 0;
+      const c = document.createElement("canvas");
+      c.width = c.height = 256;
+      const g = c.getContext("2d");
+      g.drawImage(img, sx, sy, s, s, 0, 0, 256, 256);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL("image/jpeg", 0.82));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("unreadable")); };
+    img.src = url;
+  });
+}
+
+function removePhoto(id) {
+  if (armed !== "photo") { armed = "photo"; renderSheet(); return; }
+  delete photos[id];
+  savePhotos();
+  armed = null; sheetMsg = "";
+  render(); renderSheet();
+}
+
+function showToast(text, undo) {
+  clearTimeout(toastTimer);
+  undoFn = undo || null;
+  $("toast-text").textContent = text;
+  $("toast-undo").hidden = !undoFn;
+  $("toast").hidden = false;
+  toastTimer = setTimeout(() => { $("toast").hidden = true; undoFn = null; }, 5000);
+}
+$("toast-undo").addEventListener("click", () => {
+  if (undoFn) undoFn();
+  undoFn = null; clearTimeout(toastTimer); $("toast").hidden = true;
+});
+
+function reportText() {
+  const list = sorted();
+  const done = list.filter(p => p.drink).length;
+  const lines = [`Learning Lodge Cafe - ${done} of ${list.length} answered - ${fmtDate(new Date())}`, ""];
+  for (const d of DRINKS) {
+    const who = list.filter(p => p.drink === d.key);
+    lines.push(`${d.label.toUpperCase()} (${who.length})`);
+    if (d.key === "speciality" && specialName()) lines.push(`(${specialName()})`);
+    who.forEach(p => lines.push(`- ${p.name}`));
+    lines.push("");
+  }
+  const waiting = list.filter(p => !p.drink);
+  if (waiting.length) { lines.push(`STILL TO ORDER (${waiting.length})`); waiting.forEach(p => lines.push(`- ${p.name}`)); }
+  return lines.join("\n").trim();
+}
+$("copy-btn").addEventListener("click", () => {
+  const text = reportText(), btn = $("copy-btn");
+  const fallback = () => { const box = $("copybox"); box.value = text; box.hidden = false; box.focus(); box.select(); btn.textContent = "Select the text below to copy"; };
+  try {
+    navigator.clipboard.writeText(text).then(() => { btn.textContent = "Copied"; setTimeout(() => btn.textContent = "Copy report", 2000); }, fallback);
+  } catch { fallback(); }
+});
+
+$("tab-order").addEventListener("click", () => { view = "order"; render(); });
+$("tab-report").addEventListener("click", () => { view = "report"; $("copybox").hidden = true; render(); });
+$("org-btn").addEventListener("click", () => openSheet({ type: isOrganiser() ? "organiser" : "unlock" }));
+$("scrim").addEventListener("click", closeSheet);
+document.addEventListener("keydown", e => { if (e.key === "Escape" && sheet) closeSheet(); });
+
+/* Home Screen icon, drawn once so the file stays self-contained. */
+try {
+  const c = document.createElement("canvas"); c.width = c.height = 180;
+  const g = c.getContext("2d");
+  g.fillStyle = "#1F6B57"; g.fillRect(0, 0, 180, 180);
+  g.strokeStyle = "#FFFFFF"; g.lineWidth = 9; g.lineCap = "round"; g.lineJoin = "round";
+  g.beginPath(); g.moveTo(40, 72); g.lineTo(124, 72); g.lineTo(124, 100);
+  g.arc(94, 100, 30, 0, Math.PI / 2); g.lineTo(70, 130); g.arc(70, 100, 30, Math.PI / 2, Math.PI); g.closePath(); g.stroke();
+  g.beginPath(); g.arc(132, 96, 14, -Math.PI / 2, Math.PI / 2); g.stroke();
+  for (const x of [64, 82, 100]) { g.beginPath(); g.moveTo(x, 34); g.bezierCurveTo(x - 8, 44, x + 8, 50, x, 60); g.stroke(); }
+  $("touch-icon").href = c.toDataURL("image/png");
+} catch {}
+
+$("app-version").textContent = "v" + VERSION;
+render();
+</script>
+</body>
+</html>
