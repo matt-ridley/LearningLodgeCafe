@@ -87,16 +87,21 @@ h1 { font-size: clamp(30px, 4.4vw, 44px); font-weight: 800; letter-spacing: -0.0
 .bar { flex: 1 1 200px; height: 12px; background: var(--line); border-radius: 99px; overflow: hidden; }
 .bar > i { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 99px; transition: width .4s ease; }
 
-/* First-letter filter: only letters that someone's name starts with are shown */
-.letters { display: flex; flex-wrap: wrap; gap: 8px; }
+/* Filters: ordered status, then a fixed A-Z grid with All spanning both rows on the left */
+.filters { display: grid; gap: 10px; }
+.seg { display: inline-grid; grid-template-columns: repeat(3, auto); justify-self: start; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 4px; gap: 4px; }
+.seg button { min-height: 52px; padding: 0 20px; border: 0; border-radius: 12px; background: transparent; font-weight: 700; font-size: 18px; color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.seg .num { font-size: 16px; margin-left: 4px; }
+.letters { display: grid; grid-template-columns: repeat(14, minmax(0, 1fr)); gap: 6px; }
 .letter {
-  min-width: 56px; min-height: 56px; padding: 0 14px; border-radius: 14px;
+  min-height: 52px; padding: 0; border-radius: 12px;
   border: 1px solid var(--line); background: var(--surface);
   font: 700 22px/1 var(--f-display); transition: transform .08s ease;
 }
 .letter:active { transform: scale(.94); }
 .letter[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
-.letter.all { font: 700 18px/1 var(--f-body); padding: 0 20px; }
+.letter.all { grid-row: span 2; font: 700 18px/1 var(--f-body); }
 
 main { padding: 20px var(--gutter) 32px; display: grid; gap: 18px; }
 .credit { padding: 8px var(--gutter) calc(env(safe-area-inset-bottom, 0px) + 24px); display: grid; justify-items: center; gap: 16px; text-align: center; font-size: 14px; color: var(--muted); }
@@ -108,15 +113,16 @@ main { padding: 20px var(--gutter) 32px; display: grid; gap: 18px; }
 .notice.info { background: var(--warn-soft); color: var(--warn); }
 
 /* Name tiles */
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .tile {
-  min-height: 96px; padding: 14px; text-align: left;
+  min-height: 192px; padding: 20px; text-align: left;
   border: 1px solid var(--line); border-radius: 18px; background: var(--surface);
-  display: flex; align-items: center; gap: 14px;
+  display: flex; align-items: center; gap: 20px;
   transition: transform .08s ease;
 }
 .tile:active { transform: scale(.97); }
-.tile .body { display: grid; gap: 6px; min-width: 0; }
+.tile .body { display: grid; gap: 8px; min-width: 0; }
+.tile .avatar { width: 152px; height: 152px; font-size: 52px; }
 
 /* Headshots: a photo when one is saved on this iPad, otherwise initials */
 .avatar {
@@ -129,9 +135,9 @@ main { padding: 20px var(--gutter) 32px; display: grid; gap: 18px; }
 .avatar.sm { width: 30px; height: 30px; font-size: 12px; }
 .sheet-head { display: flex; align-items: center; gap: 18px; }
 .sheet-head > div { min-width: 0; }
-.tile .name { font-size: 21px; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
-.tile .state { display: flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 600; color: var(--muted); }
-.tile .state svg { width: 22px; height: 22px; flex: none; }
+.tile .name { font-size: 26px; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
+.tile .state { display: flex; align-items: center; gap: 8px; font-size: 18px; font-weight: 600; color: var(--muted); }
+.tile .state svg { width: 28px; height: 28px; flex: none; }
 .label-stack { display: grid; line-height: 1.2; min-width: 0; }
 .label-stack .sub { font-size: .82em; font-weight: 500; overflow-wrap: anywhere; }
 .drink .label-stack { justify-items: center; text-align: center; }
@@ -222,8 +228,12 @@ main { padding: 20px var(--gutter) 32px; display: grid; gap: 18px; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 @media (max-width: 560px) {
   .tabs { width: 100%; }
-  .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .tile { flex-direction: column; align-items: flex-start; }
+  .tile .avatar { width: 104px; height: 104px; font-size: 36px; }
+  .seg { width: 100%; grid-template-columns: repeat(3, 1fr); }
+  .seg button { padding: 0 8px; font-size: 16px; }
+  .letters { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+  .letter.all { grid-row: auto; }
   .avatar.lg { width: 80px; height: 80px; font-size: 28px; }
   .drink { min-height: 110px; }
 }
@@ -245,7 +255,10 @@ main { padding: 20px var(--gutter) 32px; display: grid; gap: 18px; }
     <div class="count"><b class="num" id="done-n">0</b> of <b class="num" id="total-n">0</b> answered</div>
     <div class="bar" aria-hidden="true"><i id="bar"></i></div>
   </div>
-  <nav class="letters" id="letters" aria-label="Show names starting with" hidden></nav>
+  <div class="filters" id="filters" hidden>
+    <div class="seg" id="status-filter" role="group" aria-label="Show"></div>
+    <nav class="letters" id="letters" aria-label="Show names starting with"></nav>
+  </div>
 </header>
 
 <main>
@@ -282,7 +295,7 @@ main { padding: 20px var(--gutter) 32px; display: grid; gap: 18px; }
 
 <script>
 // Bump on every change: minor for a new feature, patch for fixes and smaller commits.
-const VERSION = "1.7.0";
+const VERSION = "1.8.0";
 const PASSWORD = "colleen";
 const KEY = "learning-lodge-cafe-v1";
 const OLD_KEYS = ["tea-round-v1"];
@@ -340,7 +353,7 @@ function savePhotos() {
 }
 
 /* ---------- Helpers ---------- */
-let view = "order", letter = null, sheet = null, unlocked = false, armed = null, toastTimer = null, undoFn = null, sheetMsg = "";
+let view = "order", letter = null, status = "all", sheet = null, unlocked = false, armed = null, toastTimer = null, undoFn = null, sheetMsg = "";
 const isOrganiser = () => !state.round.started || unlocked;
 const $ = id => document.getElementById(id);
 const byId = id => state.people.find(p => p.id === id);
@@ -420,19 +433,30 @@ function render() {
   renderReport(list);
 }
 
+const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+const STATUSES = [
+  { key: "all", label: "Everyone", test: () => true },
+  { key: "waiting", label: "Not ordered", test: p => !p.drink },
+  { key: "ordered", label: "Ordered", test: p => !!p.drink },
+];
+const byStatus = list => list.filter(STATUSES.find(s => s.key === status).test);
+
 function renderLetters(list) {
-  const letters = [...new Set(list.map(p => letterOf(p.name)))].sort((a, b) => a === "#" ? 1 : b === "#" ? -1 : a.localeCompare(b));
-  if (!letters.includes(letter)) letter = null;
-  const nav = $("letters");
-  // Not worth showing for an empty list or when everyone shares one letter.
-  nav.hidden = view !== "order" || letters.length < 2;
+  $("filters").hidden = view !== "order" || !list.length;
+  const seg = $("status-filter");
+  seg.replaceChildren(...STATUSES.map(s => el("button", { "aria-pressed": String(status === s.key),
+    onclick: () => { status = s.key; render(); window.scrollTo(0, 0); } },
+    document.createTextNode(s.label), el("span", { class: "num", text: String(list.filter(s.test).length) }))));
+  // Letters with no one (in the current status) stay in place but can't be tapped.
+  const present = new Set(byStatus(list).map(p => letterOf(p.name)));
+  if (letter && !present.has(letter)) letter = null;
   const pick = l => { letter = l; render(); window.scrollTo(0, 0); };
-  nav.replaceChildren(
+  $("letters").replaceChildren(
     el("button", { class: "letter all", "aria-pressed": String(letter === null), text: "All", onclick: () => pick(null) }),
-    ...letters.map(l => el("button", { class: "letter", "aria-pressed": String(letter === l), text: l,
-      "aria-label": l === "#" ? "Other" : l, onclick: () => pick(letter === l ? null : l) })));
+    ...ALPHABET.map(l => el("button", { class: "letter", "aria-pressed": String(letter === l), text: l,
+      disabled: !present.has(l), onclick: () => pick(letter === l ? null : l) })));
   $("lede").textContent = letter
-    ? `Showing names starting with ${letter === "#" ? "other characters" : letter}. Tap All to see everyone.`
+    ? `Showing names starting with ${letter}. Tap All to see everyone.`
     : "Tap your name to choose a drink.";
 }
 
@@ -444,7 +468,13 @@ function renderGrid(list) {
       text: "No names yet. Tap Organiser at the bottom of the screen, then add everyone's name (one per line, or paste a list)." }));
     return;
   }
-  for (const p of letter ? list.filter(p => letterOf(p.name) === letter) : list) {
+  const shown = byStatus(list).filter(p => !letter || letterOf(p.name) === letter);
+  if (!shown.length) {
+    grid.append(el("div", { class: "empty-state", style: "grid-column: 1 / -1",
+      text: status === "waiting" ? "Everyone has ordered." : "No one has ordered yet." }));
+    return;
+  }
+  for (const p of shown) {
     const status = p.drink
       ? el("span", { class: "state", html: ICON[p.drink] }, drinkLabel(p.drink))
       : el("span", { class: "state", text: "Tap to order" });
