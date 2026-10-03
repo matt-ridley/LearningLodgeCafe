@@ -284,7 +284,7 @@ main { padding: 20px var(--gutter) 32px; display: grid; gap: 18px; }
 
 <footer class="credit">
   <button class="btn" id="org-btn"></button>
-  <div>Learning Lodge Cafe <span class="num" id="app-version"></span> &middot; Built by Matt Ridley</div>
+  <div>Learning Lodge Cafe <span class="num" id="app-version"></span><span id="sync-status"></span> &middot; Built by Matt Ridley</div>
 </footer>
 
 <div class="scrim" id="scrim" hidden></div>
@@ -294,9 +294,20 @@ main { padding: 20px var(--gutter) 32px; display: grid; gap: 18px; }
 <div class="toast" id="toast" role="status" hidden><span id="toast-text"></span><button class="btn" id="toast-undo">Undo</button></div>
 
 <script>
-// Bump on every change: minor for a new feature, patch for fixes and smaller commits.
-const VERSION = "1.8.0";
+// Bump on every change: major for a big change in how the app works, minor for a new feature, patch for fixes.
+const VERSION = "2.0.0";
 const PASSWORD = "colleen";
+// Shared list across iPads (Firebase). Leave null to keep everything on this iPad only.
+// This config is public by design; access is limited by the rules in firestore.rules.
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCTcXtsOMzzfE2hsZIpuloBK4YVlkrTBgo",
+  authDomain: "learninglodgecafe.firebaseapp.com",
+  projectId: "learninglodgecafe",
+  storageBucket: "learninglodgecafe.firebasestorage.app",
+  messagingSenderId: "871902861494",
+  appId: "1:871902861494:web:ddbeca2ade58398cd7ee17",
+};
+const FIREBASE_SDK = "https://www.gstatic.com/firebasejs/12.19.0/";
 const KEY = "learning-lodge-cafe-v1";
 const OLD_KEYS = ["tea-round-v1"];
 
@@ -333,6 +344,7 @@ function loadState() {
 let state = loadState();
 function persist() {
   try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {}
+  pushState();
   render();
 }
 window.addEventListener("storage", e => {
@@ -348,9 +360,160 @@ function loadPhotos() {
 let photos = loadPhotos();
 // Returns "ok", "full" (over the storage limit) or "blocked" (the browser isn't saving data, e.g. Private Browsing).
 function savePhotos() {
+  pushPhotos();
   try { localStorage.setItem(PHOTO_KEY, JSON.stringify(photos)); return "ok"; }
-  catch (e) { return e && (e.name === "QuotaExceededError" || e.code === 22) ? "full" : "blocked"; }
+  catch (e) {
+    if (cloud.ready) return "ok"; // the shared list holds it; the local copy is only a cache
+    return e && (e.name === "QuotaExceededError" || e.code === 22) ? "full" : "blocked";
+  }
 }
+
+/* ---------- Shared list (Firebase Firestore) ----------
+   cafes/lodge holds the speciality and round; people/{id} and photos/{id} hold one person or photo each,
+   so two iPads changing different people never overwrite each other. `remote` mirrors what the cloud has:
+   local changes are compared against it and only the differences are written. */
+const cloud = { on: !!FIREBASE_CONFIG, api: null, db: null, auth: null, user: null, authKnown: false, ready: false, unsubs: [], meta: {}, failed: false };
+let remote = null;
+const personNorm = d => ({ name: String(d.name || ""), drink: d.drink || null, orderedAt: d.orderedAt || null });
+const cafeNorm = d => ({ speciality: String(d.speciality || ""),
+  round: { started: !!(d.round && d.round.started), startedAt: (d.round && d.round.startedAt) || null } });
+const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+const cafeRef = () => cloud.api.doc(cloud.db, "cafes", "lodge");
+const itemRef = (kind, id) => cloud.api.doc(cloud.db, "cafes", "lodge", kind, id);
+
+function pushState() {
+  if (!cloud.ready) return;
+  const b = cloud.api.writeBatch(cloud.db);
+  let n = 0;
+  const cur = new Map(state.people.map(p => [p.id, personNorm(p)]));
+  for (const [id, d] of cur) if (!same(remote.people.get(id), d)) { b.set(itemRef("people", id), d); remote.people.set(id, d); n++; }
+  for (const id of [...remote.people.keys()]) if (!cur.has(id)) { b.delete(itemRef("people", id)); remote.people.delete(id); n++; }
+  const c = cafeNorm(state);
+  if (!same(remote.cafe, c)) { b.set(cafeRef(), c); remote.cafe = c; n++; }
+  if (n) b.commit().catch(syncError);
+  updateSyncStatus();
+}
+
+function pushPhotos() {
+  if (!cloud.ready) return;
+  const b = cloud.api.writeBatch(cloud.db);
+  let n = 0;
+  for (const [id, src] of Object.entries(photos)) {
+    if (!byId(id) || (remote.photos.get(id) || {}).src === src) continue;
+    b.set(itemRef("photos", id), { src }); remote.photos.set(id, { src }); n++;
+  }
+  for (const id of [...remote.photos.keys()]) if (!photos[id]) { b.delete(itemRef("photos", id)); remote.photos.delete(id); n++; }
+  if (n) b.commit().catch(syncError);
+  updateSyncStatus();
+}
+
+/* Cloud changes replace this iPad's copy, which is kept in localStorage for a fast start. */
+function applyRemote() {
+  state.people = [...remote.people].map(([id, d]) => ({ id, ...d }));
+  const c = remote.cafe || cafeNorm({});
+  state.round = { ...c.round };
+  state.speciality = c.speciality;
+  photos = Object.fromEntries([...remote.photos].map(([id, d]) => [id, d.src]));
+  try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {}
+  try { localStorage.setItem(PHOTO_KEY, JSON.stringify(photos)); } catch {}
+  render();
+  // Keep an open order panel current; the organiser panel is left alone so typing isn't interrupted.
+  if (sheet && sheet.type === "order") byId(sheet.id) ? renderSheet() : closeSheet();
+}
+
+function onRemote() {
+  if (remote.cafe === undefined || !remote.people || !remote.photos) return;
+  if (!cloud.ready) {
+    cloud.ready = true;
+    updateSyncStatus();
+    // First connection with an empty shared list: upload this iPad's names, photos and speciality.
+    if (!remote.people.size && state.people.length) {
+      pushState(); pushPhotos();
+      showToast(`Shared ${plural(state.people.length, "name")} from this iPad.`);
+      return;
+    }
+  }
+  applyRemote();
+}
+
+function startListeners() {
+  const { onSnapshot, collection } = cloud.api;
+  remote = { cafe: undefined, people: null, photos: null };
+  cloud.ready = false; cloud.meta = {};
+  const opts = { includeMetadataChanges: true };
+  const seen = (key, snap) => { cloud.meta[key] = snap.metadata; cloud.failed = false; updateSyncStatus(); };
+  const list = kind => onSnapshot(collection(cloud.db, "cafes", "lodge", kind), opts, snap => {
+    seen(kind, snap);
+    if (remote[kind] && !snap.docChanges().length) return; // only the sync status changed
+    remote[kind] = new Map(snap.docs.map(d => [d.id, kind === "people" ? personNorm(d.data()) : { src: String(d.data().src || "") }]));
+    onRemote();
+  }, syncError);
+  cloud.unsubs = [
+    onSnapshot(cafeRef(), opts, snap => {
+      seen("cafe", snap);
+      const c = snap.exists() ? cafeNorm(snap.data()) : null;
+      if (remote.cafe !== undefined && same(remote.cafe, c)) return;
+      remote.cafe = c;
+      onRemote();
+    }, syncError),
+    list("people"), list("photos"),
+  ];
+}
+
+function stopListeners() {
+  cloud.unsubs.forEach(u => u());
+  cloud.unsubs = []; cloud.ready = false; remote = null; cloud.meta = {};
+}
+
+function syncError(e) {
+  console.warn("Sync error", e);
+  const first = !cloud.failed;
+  cloud.failed = true;
+  updateSyncStatus();
+  if (first && e && e.code === "permission-denied") showToast("This account can't open the shared list. Check the Firebase rules.");
+  // A refused listener stops for good, so reconnect shortly; the cloud copy then replaces anything that didn't save.
+  clearTimeout(cloud.retry);
+  cloud.retry = setTimeout(() => { if (cloud.user) { stopListeners(); startListeners(); } }, 10000);
+}
+
+function updateSyncStatus() {
+  const box = $("sync-status");
+  if (!cloud.on) { box.textContent = ""; return; }
+  const m = Object.values(cloud.meta);
+  box.textContent = " \u00b7 " + (!cloud.authKnown ? "Connecting" : !cloud.user ? "Not connected"
+    : cloud.failed ? "Sync problem"
+    : !cloud.ready || !navigator.onLine || m.some(x => x.fromCache) ? "Offline, will sync"
+    : m.some(x => x.hasPendingWrites) ? "Syncing" : "Live");
+}
+window.addEventListener("online", updateSyncStatus);
+window.addEventListener("offline", updateSyncStatus);
+
+async function initCloud() {
+  if (!cloud.on) return;
+  updateSyncStatus();
+  try {
+    const [app, auth, fs] = await Promise.all(["app", "auth", "firestore"].map(m => import(`${FIREBASE_SDK}firebase-${m}.js`)));
+    cloud.api = { ...auth, ...fs };
+    const fbApp = app.initializeApp(FIREBASE_CONFIG);
+    cloud.auth = auth.getAuth(fbApp);
+    cloud.db = fs.initializeFirestore(fbApp, { localCache: fs.persistentLocalCache({ tabManager: fs.persistentMultipleTabManager() }) });
+  } catch (e) {
+    cloud.failed = true; updateSyncStatus(); console.warn("Firebase didn't load", e);
+    return;
+  }
+  cloud.api.onAuthStateChanged(cloud.auth, user => {
+    cloud.user = user; cloud.authKnown = true;
+    if (user) {
+      startListeners();
+      if (sheet && sheet.type === "connect") closeSheet();
+    } else {
+      stopListeners();
+      openSheet({ type: "connect" });
+    }
+    render(); updateSyncStatus();
+  });
+}
+const needsConnect = () => cloud.on && cloud.authKnown && !cloud.user;
 
 /* ---------- Helpers ---------- */
 let view = "order", letter = null, status = "all", sheet = null, unlocked = false, armed = null, toastTimer = null, undoFn = null, sheetMsg = "";
@@ -420,7 +583,10 @@ function render() {
   org.setAttribute("aria-label", isOrganiser() ? "Organiser tools" : "Organiser tools, locked");
 
   const notice = $("notice");
-  if (!state.round.started) {
+  if (needsConnect()) {
+    notice.hidden = false; notice.className = "notice info";
+    notice.textContent = "This iPad isn't connected to the cafe's shared list yet.";
+  } else if (!state.round.started) {
     notice.hidden = false; notice.className = "notice info";
     notice.textContent = "The round hasn't started yet. Organiser: tap Organiser at the bottom of the screen to check the names, then start the round.";
   } else if (list.length && done === list.length) {
@@ -428,7 +594,7 @@ function render() {
     notice.textContent = "Everyone has answered. The Report tab has the full list.";
   } else notice.hidden = true;
 
-  renderLetters(list);
+  renderLetters(needsConnect() ? [] : list);
   renderGrid(list);
   renderReport(list);
 }
@@ -463,6 +629,11 @@ function renderLetters(list) {
 function renderGrid(list) {
   const grid = $("grid");
   grid.replaceChildren();
+  if (needsConnect()) {
+    grid.append(el("div", { class: "empty-state", style: "grid-column: 1 / -1" },
+      el("button", { class: "btn primary", text: "Connect this iPad", onclick: () => openSheet({ type: "connect" }) })));
+    return;
+  }
   if (!list.length) {
     grid.append(el("div", { class: "empty-state", style: "grid-column: 1 / -1",
       text: "No names yet. Tap Organiser at the bottom of the screen, then add everyone's name (one per line, or paste a list)." }));
@@ -518,11 +689,12 @@ function renderSheet() {
   if (!sheet) return closeSheet();
   if (sheet.type === "order") orderSheet(box);
   else if (sheet.type === "unlock") unlockSheet(box);
+  else if (sheet.type === "connect") connectSheet(box);
   else organiserSheet(box);
   box.hidden = false; $("scrim").hidden = false;
   document.body.classList.add("locked");
-  const pw = box.querySelector("#pw");
-  if (pw) pw.focus({ preventScroll: true });
+  const first = box.querySelector("[data-focus]");
+  if (first) first.focus({ preventScroll: true });
   const target = box.querySelector("[data-scroll]");
   if (target) target.scrollIntoView({ block: "nearest" });
 }
@@ -573,7 +745,7 @@ function confirmChangeSheet(box, p, drink) {
 }
 
 function unlockSheet(box) {
-  const input = el("input", { id: "pw", type: "password", autocomplete: "off", autocapitalize: "off",
+  const input = el("input", { id: "pw", "data-focus": "", type: "password", autocomplete: "off", autocapitalize: "off",
     autocorrect: "off", spellcheck: "false", enterkeyhint: "go" });
   const err = el("div", { class: "err", id: "pw-err" });
   const tryUnlock = () => {
@@ -589,6 +761,36 @@ function unlockSheet(box) {
     el("div", { class: "sheet-actions" },
       el("button", { class: "btn", text: "Cancel", onclick: closeSheet }),
       el("button", { class: "btn primary", text: "Unlock", onclick: tryUnlock })));
+}
+
+/* Signing in once per iPad links it to the shared list; the browser remembers the sign-in. */
+function connectSheet(box) {
+  const email = el("input", { id: "cx-email", "data-focus": "", type: "email", autocomplete: "username",
+    autocapitalize: "off", autocorrect: "off", spellcheck: "false", enterkeyhint: "next" });
+  const pass = el("input", { id: "cx-pass", type: "password", autocomplete: "current-password", enterkeyhint: "go" });
+  const msg = el("div", { class: "err" });
+  const go = async () => {
+    if (!email.value.trim() || !pass.value) { msg.className = "err"; msg.textContent = "Enter the cafe account's email and password."; return; }
+    msg.className = "ok"; msg.textContent = "Connecting...";
+    try { await cloud.api.signInWithEmailAndPassword(cloud.auth, email.value.trim(), pass.value); }
+    catch (e) {
+      msg.className = "err";
+      msg.textContent = e && e.code === "auth/network-request-failed" ? "No internet connection. Check the Wi-Fi and try again."
+        : e && e.code === "auth/too-many-requests" ? "Too many tries. Wait a few minutes and try again."
+        : "That email or password isn't right. Try again.";
+    }
+  };
+  email.addEventListener("keydown", e => { if (e.key === "Enter") pass.focus(); });
+  pass.addEventListener("keydown", e => { if (e.key === "Enter") go(); });
+  box.append(
+    el("div", {}, el("div", { class: "eyebrow", text: "Shared list" }), el("h2", { id: "sheet-title", text: "Connect this iPad" })),
+    el("p", { text: "Sign in with the cafe account so this iPad shares names, photos and orders with the other iPads. You only need to do this once on each iPad." }),
+    el("label", { class: "field" }, document.createTextNode("Email"), email),
+    el("label", { class: "field" }, document.createTextNode("Password"), pass),
+    msg,
+    el("div", { class: "sheet-actions" },
+      el("button", { class: "btn", text: "Not now", onclick: closeSheet }),
+      el("button", { class: "btn primary", text: "Connect", onclick: go })));
 }
 
 function organiserSheet(box) {
@@ -646,6 +848,13 @@ function organiserSheet(box) {
       started ? el("button", { class: "btn", html: ICON.lock + "<span>Lock now</span>",
         onclick: () => { unlocked = false; closeSheet(); render(); } }) : null,
       el("button", { class: "btn quiet", text: "Close", onclick: closeSheet })));
+  if (cloud.user) box.append(el("div", { class: "sheet-actions" },
+    el("button", { class: "btn quiet" + (armed === "disconnect" ? " danger armed" : ""),
+      text: armed === "disconnect" ? "Tap again to disconnect this iPad" : "Disconnect this iPad from the shared list",
+      onclick: () => {
+        if (armed !== "disconnect") { armed = "disconnect"; renderSheet(); return; }
+        cloud.api.signOut(cloud.auth);
+      } })));
 }
 
 /* ---------- Backup and restore (organiser only) ---------- */
@@ -657,7 +866,9 @@ const fileStamp = () => fmtDate(new Date()).replace(/:/g, "").replace(/ /g, "-")
 function backupSection() {
   const parts = [
     el("div", { class: "eyebrow", text: "Backup" }),
-    el("p", { text: "Save the names, speciality and photos to a file in the Files app, or bring them back from one. Use this before changing iPads or clearing Safari's data." }),
+    el("p", { text: cloud.user
+      ? "Save the names, speciality and photos to a file in the Files app, or bring them back from one. Keep a recent backup in case names or photos are removed by mistake: a removal reaches every iPad straight away."
+      : "Save the names, speciality and photos to a file in the Files app, or bring them back from one. Use this before changing iPads or clearing Safari's data." }),
     el("div", { class: "sheet-actions" },
       el("button", { class: "btn", text: "Save backup", disabled: !state.people.length, onclick: saveBackup }),
       el("button", { class: "btn", text: "Restore from backup", onclick: () => {
@@ -670,7 +881,9 @@ function backupSection() {
     const photoCount = Object.keys(b.photos).length;
     parts.push(el("div", { class: "restore-box", "data-scroll": "" },
       el("p", { text: `Backup${when}: ${b.people.length} ${b.people.length === 1 ? "name" : "names"}, ${photoCount} ${photoCount === 1 ? "photo" : "photos"}${b.speciality ? `, speciality: ${b.speciality}` : ""}.` }),
-      el("p", { text: "Restoring replaces the current names, photos and speciality, and clears any answers in this round." }),
+      el("p", { text: cloud.user
+        ? "Restoring replaces the names, photos and speciality on every connected iPad, and clears everyone's answers in this round."
+        : "Restoring replaces the current names, photos and speciality, and clears any answers in this round." }),
       el("div", { class: "sheet-actions" },
         el("button", { class: "btn danger armed", text: "Replace with backup", onclick: applyRestore }),
         el("button", { class: "btn", text: "Cancel", onclick: () => { pendingRestore = null; renderSheet(); } }))));
@@ -908,6 +1121,7 @@ try {
 
 $("app-version").textContent = "v" + VERSION;
 render();
+initCloud();
 </script>
 </body>
 </html>

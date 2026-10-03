@@ -6,7 +6,7 @@ The whole app is a single file, `index.html`, with no server, build step or sign
 
 **Live app:** https://matt-ridley.github.io/LearningLodgeCafe/
 
-**Current version:** 1.8.0
+**Current version:** 2.0.0
 
 ## Features
 
@@ -18,6 +18,7 @@ The whole app is a single file, `index.html`, with no server, build step or sign
 - **Live progress:** a counter and progress bar show how many people have answered.
 - **Report:** the Report tab groups everyone by drink, lists who is still to order, and has a **Copy report** button for pasting into a message or email.
 - **Organiser tools:** add or remove people, add headshot photos, set the speciality, and start a round. Once a round starts, these tools lock behind a password.
+- **Shared between iPads:** when the app is connected to the cafe's Firebase account, every iPad shares one list. An order, a new name, a photo, the speciality or a new round on one iPad appears on the others within about a second. An iPad that loses Wi-Fi keeps working and catches up when it reconnects. The footer shows **Live**, **Syncing** or **Offline, will sync**.
 - **Backup and restore:** the organiser can save the names, speciality and photos to a file in the Files app, and restore them on the same or a different iPad.
 - **Built for touch:** large tap targets, press feedback, landscape and portrait layouts, and light and dark mode.
 
@@ -45,15 +46,15 @@ The whole app is a single file, `index.html`, with no server, build step or sign
 
 ### Organiser: backing up and restoring
 
-Names, photos and the speciality live only on the iPad, so keep a backup.
+Keep a backup even when the iPads are connected. The free Firebase plan has no automatic backups, and removing a name or photo on one iPad removes it from every iPad straight away, so a backup file is the way to get it back.
 
 1. Tap **Organiser** (enter the password if the round has started).
 2. Under **Backup**, tap **Save backup**, then choose **Save to Files** in the share sheet. The file is named `learning-lodge-cafe-backup-` followed by the date and time.
 3. To restore, tap **Restore from backup** and pick the file. Check the summary, then tap **Replace with backup**.
 
-Restoring replaces the current names, photos and speciality, and clears any answers in the current round. Backups don't include answers.
+Restoring replaces the current names, photos and speciality, and clears any answers in the current round. On a connected iPad this replaces the shared list, so it changes every iPad at once. Backups don't include answers.
 
-Save a new backup after adding people or photos, and before moving to a new iPad, deleting the Home Screen app, or clearing Safari's data.
+Save a new backup after adding people or photos. If the iPads aren't connected to the shared list, also save one before moving to a new iPad, deleting the Home Screen app, or clearing Safari's data.
 
 ## Installing on an iPad
 
@@ -63,10 +64,33 @@ Save a new backup after adding people or photos, and before moving to a new iPad
 
 Always open the app from the Home Screen icon. This keeps Safari from clearing the saved orders and photos after a period of not visiting the site.
 
+## Sharing between iPads
+
+The app uses a free Firebase project (Google) to share the list between iPads. GitHub Pages only serves the app's file, so the shared list lives in Firebase.
+
+### One-time Firebase setup
+
+1. Go to https://console.firebase.google.com and create a project (Google Analytics isn't needed).
+2. **Build > Firestore Database > Create database**. Choose production mode and a nearby location.
+3. **Build > Authentication > Get started**, enable **Email/Password**, then on the **Users** tab add one user for the cafe (for example a cafe email address and a strong password). Note the user's **User UID**.
+4. **Authentication > Settings > Authorized domains**: add `matt-ridley.github.io`.
+5. **Firestore Database > Rules**: paste the contents of `firestore.rules`, replace `CAFE_ACCOUNT_UID` with the User UID from step 3, and click **Publish**.
+6. **Project settings > General > Your apps**: add a **Web** app and copy its `firebaseConfig` values into `FIREBASE_CONFIG` near the top of the script in `index.html`. These values are public by design; the rules are what keep the data private.
+
+The free Spark plan is far more than a cafe round needs.
+
+### Connecting each iPad
+
+1. Open the app from the Home Screen. A **Connect this iPad** panel appears.
+2. Enter the cafe account's email and password, then tap **Connect**. The iPad stays connected from then on.
+3. The first iPad to connect shares its existing names, photos and speciality. Other iPads then load the shared list in place of their own.
+
+To disconnect an iPad, open **Organiser** and tap **Disconnect this iPad from the shared list**.
+
 ## Where data is stored
 
-- **Names, orders, the speciality and photos are saved only on the iPad**, in the browser's local storage. Nothing is sent to a server or saved in this repo.
-- A second iPad has its own separate list, orders and photos.
+- **When connected**, names, orders, the speciality and photos are kept in the cafe's Firebase project and copied to each iPad for offline use. Only the cafe account can read them. Nothing is saved in this repo.
+- **When `FIREBASE_CONFIG` is left empty**, everything is saved only on the iPad, in the browser's local storage, and each iPad has its own separate list.
 - The Home Screen app keeps its own data, separate from Safari tabs. Set up names and photos from inside the Home Screen app.
 - Closing the app, restarting the iPad, and deploying a new version of `index.html` all keep the saved data.
 - Clearing Safari's website data, deleting the Home Screen app, or changing the site's address (for example renaming the repo) loses the saved data. Restore from a backup to get it back.
@@ -80,6 +104,7 @@ The password is set by the `PASSWORD` constant near the top of the script in `in
 
 The version number is the `VERSION` constant in `index.html`, and it is shown in the footer of the app. It follows `major.minor.patch`:
 
+- **Major** (1.9.0 to 2.0.0) for a big change in how the app works, such as sharing the list between iPads.
 - **Minor** (1.3.0 to 1.4.0) for each new feature.
 - **Patch** (1.3.0 to 1.3.1) for fixes and smaller changes.
 
@@ -89,6 +114,7 @@ Update this README's **Current version** and the changelog in the same commit.
 
 | Version | Date | Changes |
 | --- | --- | --- |
+| 2.0.0 | 2026-Oct-03 09:16:31 AM | Shared list across iPads using Firebase: orders, names, photos, the speciality and rounds sync live, with offline support. Each iPad connects once with the cafe account. Added a sync status to the footer. Backup and restore wording updated for the shared list: restoring on a connected iPad replaces the list on every iPad. |
 | 1.8.0 | 2026-Oct-03 08:18:53 AM | Name tiles in two columns, twice as tall, with larger headshots. The letter filter always shows A to Z, greying out letters with no names. Added an Everyone / Not ordered / Ordered filter. |
 | 1.7.0 | 2026-Oct-03 08:05:08 AM | Changing an order already placed this round now needs a second, explicit confirmation. Tapping the drink already chosen closes the panel without changes. |
 | 1.6.0 | 2026-Oct-03 07:56:09 AM | Added a first-letter filter to the header to find names faster. Moved the Organiser button from the header to the footer. |
