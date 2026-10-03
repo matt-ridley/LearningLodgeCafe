@@ -87,8 +87,20 @@ h1 { font-size: clamp(30px, 4.4vw, 44px); font-weight: 800; letter-spacing: -0.0
 .bar { flex: 1 1 200px; height: 12px; background: var(--line); border-radius: 99px; overflow: hidden; }
 .bar > i { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 99px; transition: width .4s ease; }
 
+/* First-letter filter: only letters that someone's name starts with are shown */
+.letters { display: flex; flex-wrap: wrap; gap: 8px; }
+.letter {
+  min-width: 56px; min-height: 56px; padding: 0 14px; border-radius: 14px;
+  border: 1px solid var(--line); background: var(--surface);
+  font: 700 22px/1 var(--f-display); transition: transform .08s ease;
+}
+.letter:active { transform: scale(.94); }
+.letter[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.letter.all { font: 700 18px/1 var(--f-body); padding: 0 20px; }
+
 main { padding: 20px var(--gutter) 32px; display: grid; gap: 18px; }
-.credit { padding: 0 var(--gutter) calc(env(safe-area-inset-bottom, 0px) + 24px); text-align: center; font-size: 14px; color: var(--muted); }
+.credit { padding: 8px var(--gutter) calc(env(safe-area-inset-bottom, 0px) + 24px); display: grid; justify-items: center; gap: 16px; text-align: center; font-size: 14px; color: var(--muted); }
+.credit .btn { color: var(--ink); }
 .credit .num { font-size: 13px; }
 .lede { margin: 0; font-size: 20px; color: var(--muted); }
 .notice { padding: 14px 18px; border-radius: 14px; font-weight: 600; }
@@ -228,19 +240,19 @@ main { padding: 20px var(--gutter) 32px; display: grid; gap: 18px; }
       <button class="tab" role="tab" id="tab-order" aria-selected="true" aria-controls="view-order">Order</button>
       <button class="tab" role="tab" id="tab-report" aria-selected="false" aria-controls="view-report">Report</button>
     </div>
-    <button class="btn" id="org-btn"></button>
   </div>
   <div class="progress">
     <div class="count"><b class="num" id="done-n">0</b> of <b class="num" id="total-n">0</b> answered</div>
     <div class="bar" aria-hidden="true"><i id="bar"></i></div>
   </div>
+  <nav class="letters" id="letters" aria-label="Show names starting with" hidden></nav>
 </header>
 
 <main>
   <section id="view-order" role="tabpanel" aria-labelledby="tab-order">
     <div style="display:grid;gap:16px">
       <div class="notice" id="notice" hidden></div>
-      <p class="lede">Tap your name to choose a drink.</p>
+      <p class="lede" id="lede">Tap your name to choose a drink.</p>
       <div class="grid" id="grid"></div>
     </div>
   </section>
@@ -257,7 +269,10 @@ main { padding: 20px var(--gutter) 32px; display: grid; gap: 18px; }
   </section>
 </main>
 
-<footer class="credit">Learning Lodge Cafe <span class="num" id="app-version"></span> &middot; Built by Matt Ridley</footer>
+<footer class="credit">
+  <button class="btn" id="org-btn"></button>
+  <div>Learning Lodge Cafe <span class="num" id="app-version"></span> &middot; Built by Matt Ridley</div>
+</footer>
 
 <div class="scrim" id="scrim" hidden></div>
 <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" hidden></div>
@@ -267,7 +282,7 @@ main { padding: 20px var(--gutter) 32px; display: grid; gap: 18px; }
 
 <script>
 // Bump on every change: minor for a new feature, patch for fixes and smaller commits.
-const VERSION = "1.5.1";
+const VERSION = "1.6.0";
 const PASSWORD = "colleen";
 const KEY = "learning-lodge-cafe-v1";
 const OLD_KEYS = ["tea-round-v1"];
@@ -325,7 +340,7 @@ function savePhotos() {
 }
 
 /* ---------- Helpers ---------- */
-let view = "order", sheet = null, unlocked = false, armed = null, toastTimer = null, undoFn = null, sheetMsg = "";
+let view = "order", letter = null, sheet = null, unlocked = false, armed = null, toastTimer = null, undoFn = null, sheetMsg = "";
 const isOrganiser = () => !state.round.started || unlocked;
 const $ = id => document.getElementById(id);
 const byId = id => state.people.find(p => p.id === id);
@@ -348,6 +363,11 @@ function fmtDate(d) {
   return `${d.getFullYear()}-${MON[d.getMonth()]}-${p(d.getDate())} ${p(h)}:${p(d.getMinutes())}:${p(d.getSeconds())} ${d.getHours() < 12 ? "AM" : "PM"}`;
 }
 const sortKey = n => n.replace(/^(mrs|mr|ms|miss|dr)\.?\s+/i, "") + " " + n;
+/* The letter a name is filed under: its first letter, ignoring a title like "Mrs". */
+function letterOf(name) {
+  const c = name.replace(/^(mrs|mr|ms|miss|dr)\.?\s+/i, "").trim().charAt(0).toUpperCase();
+  return /\p{L}/u.test(c) ? c : "#";
+}
 function initials(name) {
   const parts = name.replace(/^(mrs|mr|ms|miss|dr)\.?\s+/i, "").split(/\s+/).filter(Boolean);
   if (!parts.length) return "?";
@@ -389,14 +409,31 @@ function render() {
   const notice = $("notice");
   if (!state.round.started) {
     notice.hidden = false; notice.className = "notice info";
-    notice.textContent = "The round hasn't started yet. Organiser: tap Organiser to check the names, then start the round.";
+    notice.textContent = "The round hasn't started yet. Organiser: tap Organiser at the bottom of the screen to check the names, then start the round.";
   } else if (list.length && done === list.length) {
     notice.hidden = false; notice.className = "notice done";
     notice.textContent = "Everyone has answered. The Report tab has the full list.";
   } else notice.hidden = true;
 
+  renderLetters(list);
   renderGrid(list);
   renderReport(list);
+}
+
+function renderLetters(list) {
+  const letters = [...new Set(list.map(p => letterOf(p.name)))].sort((a, b) => a === "#" ? 1 : b === "#" ? -1 : a.localeCompare(b));
+  if (!letters.includes(letter)) letter = null;
+  const nav = $("letters");
+  // Not worth showing for an empty list or when everyone shares one letter.
+  nav.hidden = view !== "order" || letters.length < 2;
+  const pick = l => { letter = l; render(); window.scrollTo(0, 0); };
+  nav.replaceChildren(
+    el("button", { class: "letter all", "aria-pressed": String(letter === null), text: "All", onclick: () => pick(null) }),
+    ...letters.map(l => el("button", { class: "letter", "aria-pressed": String(letter === l), text: l,
+      "aria-label": l === "#" ? "Other" : l, onclick: () => pick(letter === l ? null : l) })));
+  $("lede").textContent = letter
+    ? `Showing names starting with ${letter === "#" ? "other characters" : letter}. Tap All to see everyone.`
+    : "Tap your name to choose a drink.";
 }
 
 function renderGrid(list) {
@@ -404,10 +441,10 @@ function renderGrid(list) {
   grid.replaceChildren();
   if (!list.length) {
     grid.append(el("div", { class: "empty-state", style: "grid-column: 1 / -1",
-      text: "No names yet. Tap Organiser, then add everyone's name (one per line, or paste a list)." }));
+      text: "No names yet. Tap Organiser at the bottom of the screen, then add everyone's name (one per line, or paste a list)." }));
     return;
   }
-  for (const p of list) {
+  for (const p of letter ? list.filter(p => letterOf(p.name) === letter) : list) {
     const status = p.drink
       ? el("span", { class: "state", html: ICON[p.drink] }, drinkLabel(p.drink))
       : el("span", { class: "state", text: "Tap to order" });
@@ -685,6 +722,7 @@ function choose(id, drink) {
   if (!p) return closeSheet();
   const prev = { drink: p.drink, orderedAt: p.orderedAt };
   p.drink = drink; p.orderedAt = new Date().toISOString();
+  letter = null; // the next person sees everyone
   persist(); closeSheet();
   showToast(drink === "none" ? `${p.name}: no thanks` : `${p.name}: ${drinkText(drink)}`, () => {
     const q = byId(id); if (q) { Object.assign(q, prev); persist(); }

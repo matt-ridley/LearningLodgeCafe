@@ -6,13 +6,14 @@ The whole app is a single file, `index.html`, with no server, build step or sign
 
 **Live app:** https://matt-ridley.github.io/LearningLodgeCafe/
 
-**Current version:** 1.5.1
+**Current version:** 1.6.0
 
 ## Features
 
 - **Name tiles:** each person has a large tile with their headshot (or initials), showing whether they have ordered and what they chose.
 - **One-tap ordering:** tapping a name opens a panel with four large drink buttons. One tap saves the answer, and an **Undo** prompt appears for 5 seconds in case of a wrong tap.
 - **Speciality of the round:** the organiser enters the speciality on offer, and it appears in brackets under "Speciality" everywhere in the app.
+- **Letter filter:** a row of letter buttons under the progress bar shows only the names starting with that letter, so people can find their name quickly. Titles like "Mrs" are ignored, so "Mrs Bella" is under B. Tap **All** (or the same letter again) to see everyone. The filter clears after each order, ready for the next person.
 - **Live progress:** a counter and progress bar show how many people have answered.
 - **Report:** the Report tab groups everyone by drink, lists who is still to order, and has a **Copy report** button for pasting into a message or email.
 - **Organiser tools:** add or remove people, add headshot photos, set the speciality, and start a round. Once a round starts, these tools lock behind a password.
@@ -23,7 +24,7 @@ The whole app is a single file, `index.html`, with no server, build step or sign
 
 ### Organiser: setting up a round
 
-1. Tap **Organiser** at the top right.
+1. Tap **Organiser** at the bottom of the screen.
 2. Enter the **Speciality available this round**.
 3. Add everyone's name in the **Add people** box, one per line (you can paste a whole list). The app ships with no names, so a new iPad starts empty. The list is saved on the iPad and kept for future rounds.
 4. To add a headshot or remove someone, close the panel and tap their name. The organiser options appear at the bottom of their panel.
@@ -31,7 +32,7 @@ The whole app is a single file, `index.html`, with no server, build step or sign
 
 ### Everyone: ordering
 
-1. Find your name and tap it.
+1. Tap the first letter of your name, then tap your name.
 2. Tap **Tea**, **Coffee**, **Speciality** or **No thanks**.
 3. To change your answer, tap your name again.
 
@@ -87,6 +88,7 @@ Update this README's **Current version** and the changelog in the same commit.
 
 | Version | Date | Changes |
 | --- | --- | --- |
+| 1.6.0 | 2026-Oct-03 07:56:09 AM | Added a first-letter filter to the header to find names faster. Moved the Organiser button from the header to the footer. |
 | 1.5.1 | 2026-Oct-02 11:34:25 PM | Moved to the LearningLodgeCafe repository with a fresh history. The app is now at https://matt-ridley.github.io/LearningLodgeCafe/. Re-add it to the Home Screen from the new address and restore from a backup. |
 | 1.5.0 | 2026-Oct-02 11:30:23 PM | Organiser backup and restore of names, speciality and photos, using the iPad's Files app. Opening the Organiser panel no longer pops up the keyboard. |
 | 1.4.0 | 2026-Oct-02 11:22:30 PM | Removed the built-in name list from the app so names are no longer published on the public site. The organiser now adds names on the iPad, where they are saved locally. Names already saved on an iPad are kept. |
