@@ -282,7 +282,7 @@ main { padding: 20px var(--gutter) 32px; display: grid; gap: 18px; }
 
 <script>
 // Bump on every change: minor for a new feature, patch for fixes and smaller commits.
-const VERSION = "1.6.0";
+const VERSION = "1.7.0";
 const PASSWORD = "colleen";
 const KEY = "learning-lodge-cafe-v1";
 const OLD_KEYS = ["tea-round-v1"];
@@ -500,6 +500,7 @@ function renderSheet() {
 function orderSheet(box) {
   const p = byId(sheet.id);
   if (!p) return closeSheet();
+  if (sheet.confirm) return confirmChangeSheet(box, p, sheet.confirm);
   const hasPhoto = !!photos[p.id];
   // Organiser-only parts are null when locked; filter them so append() doesn't print "null".
   box.append(...[
@@ -524,6 +525,21 @@ function orderSheet(box) {
         onclick: () => removePhoto(p.id) }) : null) : null,
     sheetMsg ? el("div", { class: "err", text: sheetMsg }) : null,
   ].filter(Boolean));
+}
+
+/* A second, explicit step before replacing an order already placed this round. */
+function confirmChangeSheet(box, p, drink) {
+  box.append(
+    el("div", { class: "sheet-head" }, avatar(p, "lg"),
+      el("div", {}, el("div", { class: "eyebrow", text: "Change order?" }),
+        el("h2", { id: "sheet-title", text: p.name }))),
+    el("p", { text: `${p.name} has already ordered ${drinkText(p.drink)}. Change it to ${drinkText(drink)}?` }),
+    el("div", { class: "drinks" },
+      el("div", { class: "drink", "data-d": p.drink, html: ICON[p.drink] }, drinkLabel(p.drink), el("small", { text: "Current order" })),
+      el("div", { class: "drink", "data-d": drink, "aria-pressed": "true", html: ICON[drink] }, drinkLabel(drink), el("small", { text: "New order" }))),
+    el("div", { class: "sheet-actions" },
+      el("button", { class: "btn", text: `Keep ${LABEL[p.drink]}`, onclick: () => { sheet.confirm = null; renderSheet(); } }),
+      el("button", { class: "btn primary", text: `Yes, change to ${LABEL[drink]}`, onclick: () => choose(p.id, drink, true) })));
 }
 
 function unlockSheet(box) {
@@ -717,9 +733,11 @@ function applyRestore() {
 }
 
 /* ---------- Actions ---------- */
-function choose(id, drink) {
+function choose(id, drink, confirmed = false) {
   const p = byId(id);
   if (!p) return closeSheet();
+  if (p.drink === drink) return closeSheet(); // nothing to change
+  if (p.drink && !confirmed) { sheet.confirm = drink; renderSheet(); return; }
   const prev = { drink: p.drink, orderedAt: p.orderedAt };
   p.drink = drink; p.orderedAt = new Date().toISOString();
   letter = null; // the next person sees everyone

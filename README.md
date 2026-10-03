@@ -6,12 +6,12 @@ The whole app is a single file, `index.html`, with no server, build step or sign
 
 **Live app:** https://matt-ridley.github.io/LearningLodgeCafe/
 
-**Current version:** 1.6.0
+**Current version:** 1.7.0
 
 ## Features
 
 - **Name tiles:** each person has a large tile with their headshot (or initials), showing whether they have ordered and what they chose.
-- **One-tap ordering:** tapping a name opens a panel with four large drink buttons. One tap saves the answer, and an **Undo** prompt appears for 5 seconds in case of a wrong tap.
+- **One-tap ordering:** tapping a name opens a panel with four large drink buttons. One tap saves the answer, and an **Undo** prompt appears for 5 seconds in case of a wrong tap. Changing an order that has already been placed asks for confirmation first, showing the current and new drink side by side.
 - **Speciality of the round:** the organiser enters the speciality on offer, and it appears in brackets under "Speciality" everywhere in the app.
 - **Letter filter:** a row of letter buttons under the progress bar shows only the names starting with that letter, so people can find their name quickly. Titles like "Mrs" are ignored, so "Mrs Bella" is under B. Tap **All** (or the same letter again) to see everyone. The filter clears after each order, ready for the next person.
 - **Live progress:** a counter and progress bar show how many people have answered.
@@ -34,7 +34,7 @@ The whole app is a single file, `index.html`, with no server, build step or sign
 
 1. Tap the first letter of your name, then tap your name.
 2. Tap **Tea**, **Coffee**, **Speciality** or **No thanks**.
-3. To change your answer, tap your name again.
+3. To change your answer, tap your name again, choose the new drink, then tap **Yes, change to...** to confirm (or **Keep...** to leave it as it was).
 
 ### Organiser: during and after a round
 
@@ -88,6 +88,7 @@ Update this README's **Current version** and the changelog in the same commit.
 
 | Version | Date | Changes |
 | --- | --- | --- |
+| 1.7.0 | 2026-Oct-03 08:05:08 AM | Changing an order already placed this round now needs a second, explicit confirmation. Tapping the drink already chosen closes the panel without changes. |
 | 1.6.0 | 2026-Oct-03 07:56:09 AM | Added a first-letter filter to the header to find names faster. Moved the Organiser button from the header to the footer. |
 | 1.5.1 | 2026-Oct-02 11:34:25 PM | Moved to the LearningLodgeCafe repository with a fresh history. The app is now at https://matt-ridley.github.io/LearningLodgeCafe/. Re-add it to the Home Screen from the new address and restore from a backup. |
 | 1.5.0 | 2026-Oct-02 11:30:23 PM | Organiser backup and restore of names, speciality and photos, using the iPad's Files app. Opening the Organiser panel no longer pops up the keyboard. |
